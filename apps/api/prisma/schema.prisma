@@ -1,0 +1,441 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// Identity & Access
+// ============================================================
+
+enum Role {
+  OWNER
+  CHAIRMAN
+  MANAGER
+  MAINTENANCE
+  ADMIN
+}
+
+enum Locale {
+  SK
+  CS
+}
+
+model User {
+  id             String   @id @default(uuid())
+  email          String   @unique
+  phone          String?
+  passwordHash   String
+  firstName      String
+  lastName       String
+  locale         Locale   @default(SK)
+  seniorMode     Boolean  @default(false)
+  totpSecret     String?
+  totpEnabled    Boolean  @default(false)
+  emailVerified  Boolean  @default(false)
+  active         Boolean  @default(true)
+  lastLoginAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  memberships    Membership[]
+  refreshTokens  RefreshToken[]
+  notifications  NotificationReceipt[]
+  createdTickets Ticket[]    @relation("TicketCreator")
+  assignedTickets Ticket[]   @relation("TicketAssignee")
+  auditEvents    AuditEvent[]
+  paperVotes     VoteRecord[] @relation("PaperVoteRecorder")
+}
+
+model RefreshToken {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime @default(now())
+  userAgent  String?
+  ipAddress  String?
+
+  @@index([userId])
+}
+
+// ============================================================
+// Building structure
+// ============================================================
+
+model Building {
+  id             String   @id @default(uuid())
+  name           String
+  address        String
+  city           String
+  zip            String
+  country        String   @default("SK") // ISO-3166-1 alpha-2
+  ico            String?  // IČO správcu / SVB
+  legalForm      String?  // "SVB", "BD", "SVJ"
+  totalShares    Decimal  @default(0) @db.Decimal(20, 6)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  apartments     Apartment[]
+  memberships    Membership[]
+  votings        Voting[]
+  tickets        Ticket[]
+  documents      Document[]
+  announcements  Announcement[]
+  meters         Meter[]
+
+  @@index([country])
+}
+
+model Apartment {
+  id             String   @id @default(uuid())
+  buildingId     String
+  building       Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  unitNumber     String   // číslo bytu
+  floor          Int?
+  area           Decimal  @db.Decimal(10, 2)
+  ownershipShare Decimal  @db.Decimal(20, 6) // podiel na spoločných častiach
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  memberships    Membership[]
+  meters         Meter[]
+  voteRecords    VoteRecord[]
+  tickets        Ticket[]
+
+  @@unique([buildingId, unitNumber])
+  @@index([buildingId])
+}
+
+model Membership {
+  id             String   @id @default(uuid())
+  // userId môže byť null kým aktivačný kód nie je uplatnený
+  userId         String?
+  user           User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  buildingId     String
+  building       Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  apartmentId    String?
+  apartment      Apartment? @relation(fields: [apartmentId], references: [id], onDelete: SetNull)
+  role           Role
+  sharePercent   Decimal? @db.Decimal(10, 6) // spoluvlastnícky podiel v %
+  verifiedAt     DateTime?
+  activationCode String?  @unique // kód z vyúčtovania (po uplatnení sa nuluje)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, buildingId, apartmentId, role])
+  @@index([buildingId])
+  @@index([apartmentId])
+}
+
+// ============================================================
+// Voting
+// ============================================================
+
+enum VotingStatus {
+  DRAFT
+  OPEN
+  CLOSED
+  CANCELLED
+}
+
+enum VotingType {
+  SIMPLE_MAJORITY      // nadpolovičná väčšina
+  QUALIFIED_MAJORITY   // dvojtretinová väčšina
+  UNANIMOUS            // jednomyseľné
+}
+
+enum VoteChannel {
+  ELECTRONIC
+  PAPER
+}
+
+enum VoteChoice {
+  YES
+  NO
+  ABSTAIN
+}
+
+model Voting {
+  id              String       @id @default(uuid())
+  buildingId      String
+  building        Building     @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  title           String
+  description     String
+  type            VotingType
+  status          VotingStatus @default(DRAFT)
+  opensAt         DateTime
+  closesAt        DateTime
+  quorumRequired  Decimal      @db.Decimal(5, 4) // napr. 0.5001 pre nadpolovičnú
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  records         VoteRecord[]
+  result          VotingResult?
+
+  @@index([buildingId])
+  @@index([status])
+}
+
+// Každý záznam = jeden hlas od jedného bytu. Môže byť elektronický aj listinný.
+// Pravidlá (vyhodnocované v service vrstve pri uzávierke):
+//  1. Ak pre (votingId, apartmentId) existuje aspoň jeden PAPER záznam,
+//     použije sa NAJNOVŠÍ PAPER (listinný má prioritu).
+//  2. Inak sa použije NAJNOVŠÍ ELECTRONIC pred closesAt.
+model VoteRecord {
+  id              String      @id @default(uuid())
+  votingId        String
+  voting          Voting      @relation(fields: [votingId], references: [id], onDelete: Cascade)
+  apartmentId     String
+  apartment       Apartment   @relation(fields: [apartmentId], references: [id], onDelete: Cascade)
+  channel         VoteChannel
+  choice          VoteChoice
+  castAt          DateTime    @default(now())
+  // Pre elektronické: hash identifikujúci session (anti-replay).
+  // Pre listinné: ID fyzického hárku a kto ho zapísal.
+  electronicSessionHash String?
+  paperBallotReference  String?
+  recordedById    String?
+  recordedBy      User?       @relation("PaperVoteRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
+  // Odtlačok hlasu pre právnu validitu (choice + castAt + predošlý hash).
+  integrityHash   String
+  prevHash        String?
+
+  @@index([votingId, apartmentId, channel, castAt])
+}
+
+model VotingResult {
+  id              String   @id @default(uuid())
+  votingId        String   @unique
+  voting          Voting   @relation(fields: [votingId], references: [id], onDelete: Cascade)
+  computedAt      DateTime @default(now())
+  yesShares       Decimal  @db.Decimal(20, 6)
+  noShares        Decimal  @db.Decimal(20, 6)
+  abstainShares   Decimal  @db.Decimal(20, 6)
+  totalShares     Decimal  @db.Decimal(20, 6)
+  quorumReached   Boolean
+  accepted        Boolean
+  pdfStorageKey   String?  // PDF zápisnica uložená v S3/MinIO
+  pdfSha256       String?
+}
+
+// ============================================================
+// Tickets (hlásenie porúch)
+// ============================================================
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  CRITICAL
+}
+
+model Ticket {
+  id             String         @id @default(uuid())
+  buildingId     String
+  building       Building       @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  apartmentId    String?
+  apartment      Apartment?     @relation(fields: [apartmentId], references: [id], onDelete: SetNull)
+  creatorId      String
+  creator        User           @relation("TicketCreator", fields: [creatorId], references: [id], onDelete: Restrict)
+  assigneeId     String?
+  assignee       User?          @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  title          String
+  description    String
+  status         TicketStatus   @default(OPEN)
+  priority       TicketPriority @default(NORMAL)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  resolvedAt     DateTime?
+
+  attachments    TicketAttachment[]
+  comments       TicketComment[]
+
+  @@index([buildingId, status])
+  @@index([assigneeId])
+}
+
+model TicketAttachment {
+  id          String   @id @default(uuid())
+  ticketId    String
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  storageKey  String   // kľúč v MinIO
+  mimeType    String
+  sizeBytes   Int
+  sha256      String
+  uploadedAt  DateTime @default(now())
+}
+
+model TicketComment {
+  id          String   @id @default(uuid())
+  ticketId    String
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId    String
+  body        String
+  createdAt   DateTime @default(now())
+}
+
+// ============================================================
+// Documents
+// ============================================================
+
+enum DocumentCategory {
+  CONTRACT
+  INVOICE
+  ANNUAL_REPORT
+  TECHNICAL_REVIEW
+  MEETING_MINUTES
+  OTHER
+}
+
+model Document {
+  id          String           @id @default(uuid())
+  buildingId  String
+  building    Building         @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  category    DocumentCategory
+  title       String
+  description String?
+  storageKey  String
+  mimeType    String
+  sizeBytes   Int
+  sha256      String
+  uploadedBy  String
+  validFrom   DateTime?
+  validTo     DateTime?
+  createdAt   DateTime         @default(now())
+
+  @@index([buildingId, category])
+}
+
+// ============================================================
+// Announcements (digitálna nástenka)
+// ============================================================
+
+enum AnnouncementSeverity {
+  INFO
+  WARNING
+  URGENT
+}
+
+model Announcement {
+  id          String              @id @default(uuid())
+  buildingId  String
+  building    Building            @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  authorId    String
+  title       String
+  body        String
+  severity    AnnouncementSeverity @default(INFO)
+  publishedAt DateTime            @default(now())
+  expiresAt   DateTime?
+
+  receipts    NotificationReceipt[]
+
+  @@index([buildingId, publishedAt])
+}
+
+model NotificationReceipt {
+  id             String       @id @default(uuid())
+  announcementId String
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readAt         DateTime?
+  deliveredAt    DateTime     @default(now())
+
+  @@unique([announcementId, userId])
+  @@index([userId])
+}
+
+// ============================================================
+// Energy (IoT + EDC)
+// ============================================================
+
+enum MeterType {
+  ELECTRICITY
+  WATER_COLD
+  WATER_HOT
+  HEAT
+  PV_PRODUCTION // výroba z fotovoltiky
+}
+
+model Meter {
+  id           String      @id @default(uuid())
+  buildingId   String
+  building     Building    @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  apartmentId  String?
+  apartment    Apartment?  @relation(fields: [apartmentId], references: [id], onDelete: SetNull)
+  type         MeterType
+  serialNumber String      @unique
+  label        String?
+  installedAt  DateTime?
+  active       Boolean     @default(true)
+
+  readings     EnergyReading[]
+
+  @@index([buildingId, type])
+}
+
+// 15-minútové intervaly (EDC štandard)
+model EnergyReading {
+  id          String   @id @default(uuid())
+  meterId     String
+  meter       Meter    @relation(fields: [meterId], references: [id], onDelete: Cascade)
+  intervalStart DateTime
+  intervalEnd   DateTime
+  // kWh alebo m3 – dostatočná presnosť pre vyúčtovanie
+  value        Decimal  @db.Decimal(18, 6)
+  quality      String?  // "MEASURED" | "ESTIMATED" | "SUBSTITUTED"
+
+  @@unique([meterId, intervalStart])
+  @@index([meterId, intervalStart])
+}
+
+// Alokácia zdieľanej zelenej energie z PV na jednotlivé byty v 15-min. okne.
+model EnergyAllocation {
+  id            String   @id @default(uuid())
+  apartmentId   String
+  intervalStart DateTime
+  intervalEnd   DateTime
+  allocatedKwh  Decimal  @db.Decimal(18, 6)
+  // 0.0 - 1.0, koľko % PV produkcie pripadlo na tento byt v danom intervale
+  sharePercent  Decimal  @db.Decimal(7, 6)
+  createdAt     DateTime @default(now())
+
+  @@unique([apartmentId, intervalStart])
+  @@index([apartmentId, intervalStart])
+}
+
+// ============================================================
+// Audit (append-only s hash-reťazením)
+// ============================================================
+
+model AuditEvent {
+  id          String   @id @default(uuid())
+  occurredAt  DateTime @default(now())
+  actorId     String?
+  actor       User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action      String   // napr. "VOTING_CAST", "USER_LOGIN"
+  resourceType String  // "Voting", "User", "Ticket", ...
+  resourceId  String?
+  payload     Json?
+  ipAddress   String?
+  userAgent   String?
+  prevHash    String?
+  hash        String   @unique
+
+  @@index([occurredAt])
+  @@index([resourceType, resourceId])
+}

@@ -1,0 +1,61 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: domovplus-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: domovplus
+      POSTGRES_PASSWORD: domovplus_dev_password
+      POSTGRES_DB: domovplus
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U domovplus"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: domovplus-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: domovplus
+      MINIO_ROOT_PASSWORD: domovplus_dev_password
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: domovplus-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://domovplus:domovplus_dev_password@postgres:5432/domovplus?schema=public
+      JWT_SECRET: change-me-in-production-use-long-random-string
+      JWT_EXPIRES_IN: 15m
+      REFRESH_TOKEN_EXPIRES_IN: 7d
+      NODE_ENV: production
+      PORT: 3000
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: domovplus
+      S3_SECRET_KEY: domovplus_dev_password
+      S3_BUCKET: domovplus-documents
+    ports:
+      - "3000:3000"
+    profiles:
+      - full
+
+volumes:
+  postgres_data:
+  minio_data:

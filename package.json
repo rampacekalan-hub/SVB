@@ -1,0 +1,25 @@
+{
+  "name": "domovplus",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Self-hosted SaaS platform for apartment building management (SK/CZ)",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run start:dev --workspace=@domovplus/api",
+    "dev:web": "npm run dev --workspace=@domovplus/web",
+    "dev:mobile": "npm run start --workspace=@domovplus/mobile",
+    "build:api": "npm run build --workspace=@domovplus/api",
+    "build:web": "npm run build --workspace=@domovplus/web",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "db:migrate": "npm run prisma:migrate --workspace=@domovplus/api",
+    "db:seed": "npm run prisma:seed --workspace=@domovplus/api"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
