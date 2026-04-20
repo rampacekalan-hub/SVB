@@ -58,7 +58,7 @@ export class AuditService {
     });
     let prevHash: string | null = null;
     for (const ev of events) {
-      const material = JSON.stringify({
+      const material: string = JSON.stringify({
         prevHash,
         occurredAt: ev.occurredAt.toISOString(),
         actorId: ev.actorId,
@@ -67,7 +67,7 @@ export class AuditService {
         resourceId: ev.resourceId,
         payload: ev.payload ?? null,
       });
-      const expected = createHash('sha256').update(material).digest('hex');
+      const expected: string = createHash('sha256').update(material).digest('hex');
       if (expected !== ev.hash || ev.prevHash !== prevHash) {
         return { valid: false, brokenAt: ev.id };
       }
