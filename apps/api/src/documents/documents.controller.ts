@@ -18,7 +18,7 @@ import { DocumentsService } from './documents.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 class UploadDocumentDto {
-  @IsUUID()
+  @IsString()
   buildingId!: string;
 
   @IsEnum(DocumentCategory)

@@ -24,6 +24,7 @@ export class VotingController {
       ...dto,
       opensAt: new Date(dto.opensAt),
       closesAt: new Date(dto.closesAt),
+      meetingId: dto.meetingId,
     });
   }
 
@@ -62,6 +63,8 @@ export class VotingController {
       choice: dto.choice,
       paperBallotReference: dto.paperBallotReference,
       castAt: dto.castAt ? new Date(dto.castAt) : undefined,
+      proxyFromApartmentId: dto.proxyFromApartmentId,
+      proxyDocumentKey: dto.proxyDocumentKey,
     });
   }
 

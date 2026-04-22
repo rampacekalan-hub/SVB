@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Pressable, RefreshControl } from 'react-native';
 import { api } from '../api';
+import { colors, radius, space, typography, hitTarget } from '../theme';
 
 interface Me {
   firstName: string;
@@ -12,47 +13,146 @@ interface Me {
   }>;
 }
 
+const ROLE_LABEL: Record<string, string> = {
+  OWNER: 'Vlastník',
+  CHAIRMAN: 'Predseda',
+  MANAGER: 'Správca',
+  MAINTENANCE: 'Údržba',
+  ADMIN: 'Administrátor',
+};
+
 export function HomeScreen({ navigation }: any) {
   const [me, setMe] = useState<Me | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const t = typography(false);
+  const h = hitTarget(false);
 
+  function load() {
+    return api<Me>('/users/me')
+      .then(setMe)
+      .catch(() => navigation.replace('Login'));
+  }
   useEffect(() => {
-    api<Me>('/users/me').then(setMe).catch(() => navigation.replace('Login'));
+    load();
   }, []);
 
-  if (!me) return null;
+  const hour = new Date().getHours();
+  const greet = hour < 11 ? 'Dobré ráno' : hour < 18 ? 'Dobrý deň' : 'Dobrý večer';
+
+  if (!me) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.h1}>Vitajte, {me.firstName}</Text>
-      <Text style={styles.h2}>Vaše budovy</Text>
-      {me.memberships.map((m) => (
-        <Pressable
-          key={m.building.id + m.role}
-          style={styles.card}
-          onPress={() => navigation.navigate('Voting', { buildingId: m.building.id })}
-        >
-          <Text style={styles.cardTitle}>{m.building.name}</Text>
-          <Text>
-            {m.building.city} · {m.role}
-            {m.apartment && ` · byt ${m.apartment.unitNumber}`}
+    <ScrollView
+      style={{ backgroundColor: colors.bg }}
+      contentContainerStyle={styles.container}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={async () => {
+            setRefreshing(true);
+            await load();
+            setRefreshing(false);
+          }}
+          tintColor={colors.brand}
+        />
+      }
+    >
+      <Text style={t.h1}>
+        {greet}, {me.firstName}.
+      </Text>
+      <Text style={t.muted}>Vyberte si budovu, ktorú chcete spravovať.</Text>
+
+      <Text style={[t.h2, { marginTop: space.xl }]}>Vaše budovy</Text>
+
+      {me.memberships.length === 0 ? (
+        <View style={styles.empty}>
+          <View style={styles.emptyIcon}>
+            <Text style={{ fontSize: 30 }}>🏠</Text>
+          </View>
+          <Text style={[t.h3, { marginTop: 8 }]}>Zatiaľ žiadna budova</Text>
+          <Text style={[t.muted, { textAlign: 'center' }]}>
+            Požiadajte správcu o aktivačný kód z vyúčtovania.
           </Text>
-        </Pressable>
-      ))}
+        </View>
+      ) : (
+        me.memberships.map((m) => (
+          <Pressable
+            key={m.building.id + m.role}
+            style={({ pressed }) => [styles.card, { minHeight: h, opacity: pressed ? 0.85 : 1 }]}
+            onPress={() =>
+              navigation.navigate('Voting', {
+                buildingId: m.building.id,
+                apartmentId: m.role === 'OWNER' ? m.apartment?.id ?? null : null,
+                role: m.role,
+              })
+            }
+            accessibilityRole="button"
+            accessibilityLabel={`${m.building.name}, ${ROLE_LABEL[m.role] ?? m.role}`}
+          >
+            <View style={{ flex: 1 }}>
+              <View style={styles.cardHeader}>
+                <Text style={t.h3} numberOfLines={1}>
+                  {m.building.name}
+                </Text>
+                <View style={styles.rolePill}>
+                  <Text style={styles.rolePillText}>{ROLE_LABEL[m.role] ?? m.role}</Text>
+                </View>
+              </View>
+              <Text style={[t.muted, { marginTop: 4 }]}>
+                📍 {m.building.city}
+                {m.apartment && `  ·  byt ${m.apartment.unitNumber}`}
+              </Text>
+            </View>
+            <Text style={{ color: colors.fgSubtle, fontSize: 24 }}>›</Text>
+          </Pressable>
+        ))
+      )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16 },
-  h1: { fontSize: 24, fontWeight: '600', marginBottom: 12 },
-  h2: { fontSize: 18, fontWeight: '500', marginTop: 12, marginBottom: 8 },
+  container: { padding: space.lg, paddingBottom: space.xxl },
   card: {
-    padding: 12,
-    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: space.lg,
+    marginBottom: space.md,
     borderWidth: 1,
-    borderColor: '#dde',
-    borderRadius: 8,
-    backgroundColor: 'white',
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
-  cardTitle: { fontSize: 18, fontWeight: '500', marginBottom: 4 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'space-between' },
+  rolePill: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: radius.full,
+    backgroundColor: colors.infoSoft,
+  },
+  rolePillText: { fontSize: 12, fontWeight: '600', color: colors.info },
+  empty: {
+    alignItems: 'center',
+    padding: space.xl,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.borderStrong,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    marginTop: space.md,
+  },
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.surface2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

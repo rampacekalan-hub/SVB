@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
@@ -13,13 +14,23 @@ import { AnnouncementsModule } from './announcements/announcements.module';
 import { EnergyModule } from './energy/energy.module';
 import { AuditModule } from './audit/audit.module';
 import { StorageModule } from './storage/storage.module';
+import { FinanceModule } from './finance/finance.module';
+import { MeetingsModule } from './meetings/meetings.module';
+import { MailModule } from './mail/mail.module';
+import { LeadsModule } from './leads/leads.module';
+import { PushModule } from './push/push.module';
+import { RevisionsModule } from './revisions/revisions.module';
+import { ClassifiedsModule } from './classifieds/classifieds.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     PrismaModule,
     StorageModule,
+    MailModule,
+    PushModule,
     AuditModule,
     AuthModule,
     UsersModule,
@@ -29,6 +40,11 @@ import { StorageModule } from './storage/storage.module';
     DocumentsModule,
     AnnouncementsModule,
     EnergyModule,
+    FinanceModule,
+    MeetingsModule,
+    LeadsModule,
+    RevisionsModule,
+    ClassifiedsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

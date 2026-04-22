@@ -43,11 +43,58 @@ model User {
 
   memberships    Membership[]
   refreshTokens  RefreshToken[]
+  passwordResets PasswordResetToken[]
+  totpRecoveryCodes TotpRecoveryCode[]
+  pushSubscriptions PushSubscription[]
+  classifieds    Classified[]
   notifications  NotificationReceipt[]
   createdTickets Ticket[]    @relation("TicketCreator")
   assignedTickets Ticket[]   @relation("TicketAssignee")
   auditEvents    AuditEvent[]
   paperVotes     VoteRecord[] @relation("PaperVoteRecorder")
+  createdMeetings Meeting[]  @relation("MeetingCreator")
+  meetingAttendance MeetingAttendance[]
+}
+
+model PasswordResetToken {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime @default(now())
+  requestIp  String?
+
+  @@index([userId])
+}
+
+/// Jednorazové záložné kódy pre TOTP (ak používateľ stratí telefón).
+/// Každý sa dá použiť iba raz; pri použití sa markuje usedAt.
+model TotpRecoveryCode {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash   String   @unique
+  usedAt     DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// Web push (VAPID) subscription per device. Jeden user môže mať viac.
+model PushSubscription {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model RefreshToken {
@@ -88,6 +135,10 @@ model Building {
   documents      Document[]
   announcements  Announcement[]
   meters         Meter[]
+  invoices       Invoice[]
+  meetings       Meeting[]
+  revisions      Revision[]
+  classifieds    Classified[]
 
   @@index([country])
 }
@@ -107,6 +158,8 @@ model Apartment {
   meters         Meter[]
   voteRecords    VoteRecord[]
   tickets        Ticket[]
+  invoices       Invoice[]
+  payments       Payment[]
 
   @@unique([buildingId, unitNumber])
   @@index([buildingId])
@@ -165,6 +218,8 @@ model Voting {
   id              String       @id @default(uuid())
   buildingId      String
   building        Building     @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  meetingId       String?
+  meeting         Meeting?     @relation(fields: [meetingId], references: [id], onDelete: SetNull)
   title           String
   description     String
   type            VotingType
@@ -180,6 +235,7 @@ model Voting {
 
   @@index([buildingId])
   @@index([status])
+  @@index([meetingId])
 }
 
 // Každý záznam = jeden hlas od jedného bytu. Môže byť elektronický aj listinný.
@@ -202,11 +258,16 @@ model VoteRecord {
   paperBallotReference  String?
   recordedById    String?
   recordedBy      User?       @relation("PaperVoteRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
+  // Proxy voting (splnomocnenie): ak je prítomné, tento záznam je hlas za iný byt
+  // vykonaný na základe písomného splnomocnenia (skan je v proxyDocumentKey).
+  proxyFromApartmentId String?
+  proxyDocumentKey     String?
   // Odtlačok hlasu pre právnu validitu (choice + castAt + predošlý hash).
   integrityHash   String
   prevHash        String?
 
   @@index([votingId, apartmentId, channel, castAt])
+  @@index([proxyFromApartmentId])
 }
 
 model VotingResult {
@@ -416,6 +477,211 @@ model EnergyAllocation {
 
   @@unique([apartmentId, intervalStart])
   @@index([apartmentId, intervalStart])
+}
+
+// ============================================================
+// Finance — faktúry / vyúčtovania / platby
+// ============================================================
+
+enum InvoiceCategory {
+  MAINTENANCE_FUND   // fond opráv
+  SERVICES           // zálohy na služby (teplo, voda, spoločná elektrina)
+  MANAGEMENT_FEE     // odmena správcu
+  ONE_TIME           // mimoriadna platba (napr. výťah)
+  OTHER
+}
+
+enum InvoiceStatus {
+  DUE
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+model Invoice {
+  id           String          @id @default(uuid())
+  buildingId   String
+  building     Building        @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  apartmentId  String
+  apartment    Apartment       @relation(fields: [apartmentId], references: [id], onDelete: Cascade)
+  number       String          // evidenčné číslo (napr. 2026-04-0042)
+  category     InvoiceCategory
+  period       String          // napr. "2026-04" alebo "2026-Q2"
+  amount       Decimal         @db.Decimal(14, 2)
+  currency     String          @default("EUR")
+  issuedAt     DateTime        @default(now())
+  dueDate      DateTime
+  status       InvoiceStatus   @default(DUE)
+  pdfStorageKey String?
+  note         String?
+  // QR code data pre SEPA/EPC platbu v mobile bankingu
+  qrPaymentString String?
+  payments     Payment[]
+
+  @@unique([buildingId, number])
+  @@index([apartmentId, status])
+  @@index([buildingId, period])
+}
+
+model Payment {
+  id           String   @id @default(uuid())
+  apartmentId  String
+  apartment    Apartment @relation(fields: [apartmentId], references: [id], onDelete: Cascade)
+  invoiceId    String?
+  invoice      Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  amount       Decimal  @db.Decimal(14, 2)
+  currency     String   @default("EUR")
+  paidAt       DateTime
+  reference    String?  // VS / SS / KS
+  source       String?  // "BANK_IMPORT", "MANUAL", ...
+  createdAt    DateTime @default(now())
+
+  @@index([apartmentId, paidAt])
+  @@index([invoiceId])
+}
+
+// ============================================================
+// Schôdze vlastníkov (valné zhromaždenia / shromáždenia)
+// ============================================================
+
+enum MeetingStatus {
+  SCHEDULED
+  CANCELLED
+  COMPLETED
+}
+
+model Meeting {
+  id           String         @id @default(uuid())
+  buildingId   String
+  building     Building       @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  createdById  String
+  createdBy    User           @relation("MeetingCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  title        String
+  scheduledAt  DateTime
+  location     String?        // napr. "pivnica pri kočíkarni" alebo Zoom link
+  agenda       String         // markdown/plain text body
+  minutes      String?        // zápisnica po skončení
+  minutesPdfKey String?
+  status       MeetingStatus  @default(SCHEDULED)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  attendance   MeetingAttendance[]
+  votings      Voting[]
+
+  @@index([buildingId, scheduledAt])
+}
+
+model MeetingAttendance {
+  id         String  @id @default(uuid())
+  meetingId  String
+  meeting    Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  apartmentId String?
+  rsvp       String? // "YES" | "NO" | "MAYBE"
+  attended   Boolean @default(false)
+  checkedInAt DateTime?
+
+  @@unique([meetingId, userId])
+  @@index([userId])
+}
+
+// ============================================================
+// Revízie & preventívna údržba (zákonné termíny)
+// ============================================================
+
+enum RevisionType {
+  BOILER          // kotol / plynové zariadenia
+  ELEVATOR        // výťah
+  CHIMNEY         // kominárske
+  ELECTRICAL      // elektroinštalácia
+  FIRE_SAFETY     // požiarna
+  GAS             // plynovod
+  LIGHTNING_ROD   // bleskozvod
+  PLAYGROUND      // detské ihrisko
+  OTHER
+}
+
+model Revision {
+  id          String       @id @default(uuid())
+  buildingId  String
+  building    Building     @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  type        RevisionType
+  title       String
+  dueDate     DateTime
+  lastDoneAt  DateTime?
+  intervalMonths Int?      // pre automatické plánovanie ďalšej (napr. 12)
+  contractorName String?
+  contractorPhone String?
+  contractorEmail String?
+  notes       String?
+  reminderSentAt DateTime? // cron označí, aby neposielal pripomienku 2x
+  completedAt DateTime?
+  reportPdfKey String?     // nahratý protokol
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([buildingId, dueDate])
+  @@index([dueDate])
+}
+
+// ============================================================
+// Marketplace / burza (susedská)
+// ============================================================
+
+enum ClassifiedType {
+  FOR_SALE       // predám
+  WANTED         // hľadám
+  GIVEAWAY       // zadarmo
+  LOST_AND_FOUND // straty a nálezy
+  PACKAGE        // "mám váš balík"
+}
+
+enum ClassifiedStatus {
+  ACTIVE
+  CLOSED
+  REMOVED
+}
+
+model Classified {
+  id          String           @id @default(uuid())
+  buildingId  String
+  building    Building         @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  type        ClassifiedType
+  title       String
+  body        String
+  priceEur    Decimal?         @db.Decimal(10, 2)
+  contactPhone String?
+  contactApartment String?     // napr. "byt 17"
+  status      ClassifiedStatus @default(ACTIVE)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  expiresAt   DateTime?        // default 60 dní
+
+  @@index([buildingId, status, createdAt])
+  @@index([authorId])
+}
+
+// ============================================================
+// Marketing leads (z landing page formuláru)
+// ============================================================
+
+model Lead {
+  id         String   @id @default(uuid())
+  email      String
+  phone      String?
+  city       String?
+  units      Int?
+  source     String?  // "landing", "referral", ...
+  note       String?
+  status     String   @default("NEW") // NEW | CONTACTED | CONVERTED | LOST
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([status])
 }
 
 // ============================================================

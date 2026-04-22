@@ -79,6 +79,41 @@ export class AnnouncementsService {
     });
   }
 
+  /**
+   * Kompletný zoznam oznamov budovy — pre chairman/správcu, ktorí potrebujú
+   * vidieť všetko, čo budova uverejnila (nielen „moje neprečítané").
+   * Obsahuje čítanosť: koľko ľudí ho dostalo, koľko si ho prečítalo.
+   */
+  async buildingFeed(user: AuthedUser, buildingId: string) {
+    const ok = user.memberships.some(
+      (m) => m.buildingId === buildingId && ['CHAIRMAN', 'MANAGER', 'ADMIN'].includes(m.role),
+    );
+    if (!ok) throw new ForbiddenException();
+    const items = await this.prisma.announcement.findMany({
+      where: { buildingId },
+      orderBy: { publishedAt: 'desc' },
+      include: {
+        _count: { select: { receipts: true } },
+        receipts: { where: { readAt: { not: null } }, select: { id: true } },
+      },
+    });
+    return items.map((a) => {
+      const delivered = (a as any)._count.receipts as number;
+      const readCount = (a as any).receipts.length as number;
+      return {
+        id: a.id,
+        title: a.title,
+        body: a.body,
+        severity: a.severity,
+        publishedAt: a.publishedAt,
+        expiresAt: a.expiresAt,
+        delivered,
+        readCount,
+        readRate: delivered > 0 ? Number((readCount / delivered).toFixed(3)) : 0,
+      };
+    });
+  }
+
   async acknowledge(user: AuthedUser, receiptId: string) {
     const receipt = await this.prisma.notificationReceipt.findUnique({
       where: { id: receiptId },

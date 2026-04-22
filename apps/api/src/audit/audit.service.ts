@@ -52,6 +52,74 @@ export class AuditService {
     });
   }
 
+  /**
+   * Udalosti viazané na konkrétnu budovu — kombinácia resourceId === buildingId
+   * a eventov viazaných na sub-resources (membershipy, hlasy, faktúry) v budove.
+   * Pre jednoduchosť filtrujeme dva spôsoby:
+   *   1) payload.buildingId === buildingId (ak bol uložený)
+   *   2) resourceId je priamo buildingId
+   *   3) resourceId je podzdroj budovy — dotiahneme join per typ
+   * Vráti zoznam + počet a verifyChain stav.
+   */
+  async buildingTimeline(buildingId: string, limit = 200) {
+    // Získame eventy podľa viacerých kritérií cez SQL OR.
+    const membershipIds = await this.prisma.membership.findMany({
+      where: { buildingId }, select: { id: true },
+    });
+    const apartmentIds = await this.prisma.apartment.findMany({
+      where: { buildingId }, select: { id: true },
+    });
+    const votingIds = await this.prisma.voting.findMany({
+      where: { buildingId }, select: { id: true },
+    });
+    const meetingIds = await this.prisma.meeting.findMany({
+      where: { buildingId }, select: { id: true },
+    });
+    const ticketIds = await this.prisma.ticket.findMany({
+      where: { buildingId }, select: { id: true },
+    });
+    const invoiceIds = await this.prisma.invoice.findMany({
+      where: { buildingId }, select: { id: true },
+    });
+    const announcementIds = await this.prisma.announcement.findMany({
+      where: { buildingId }, select: { id: true },
+    });
+    const revisionIds = await this.prisma.revision.findMany({
+      where: { buildingId }, select: { id: true },
+    });
+    const allIds = new Set<string>([
+      buildingId,
+      ...membershipIds.map((m) => m.id),
+      ...apartmentIds.map((a) => a.id),
+      ...votingIds.map((v) => v.id),
+      ...meetingIds.map((m) => m.id),
+      ...ticketIds.map((t) => t.id),
+      ...invoiceIds.map((i) => i.id),
+      ...announcementIds.map((a) => a.id),
+      ...revisionIds.map((r) => r.id),
+    ]);
+
+    const events = await this.prisma.auditEvent.findMany({
+      where: { resourceId: { in: Array.from(allIds) } },
+      include: { actor: { select: { firstName: true, lastName: true, email: true } } },
+      orderBy: { occurredAt: 'desc' },
+      take: limit,
+    });
+
+    return events.map((e) => ({
+      id: e.id,
+      occurredAt: e.occurredAt,
+      action: e.action,
+      resourceType: e.resourceType,
+      resourceId: e.resourceId,
+      actor: e.actor ? { name: `${e.actor.firstName} ${e.actor.lastName}`, email: e.actor.email } : null,
+      actorSystemName: !e.actor ? 'SYSTEM' : null,
+      payload: e.payload,
+      hash: e.hash,
+      prevHash: e.prevHash,
+    }));
+  }
+
   async verifyChain(): Promise<{ valid: boolean; brokenAt?: string }> {
     const events = await this.prisma.auditEvent.findMany({
       orderBy: { occurredAt: 'asc' },

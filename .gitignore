@@ -19,3 +19,12 @@ storage/
 uploads/
 *.tsbuildinfo
 .pnpm-store/
+
+# Local runtime data (MinIO bucket files, Vite PWA dev cache)
+.minio-data/
+apps/web/dev-dist/
+
+# Local process logs (redundant with *.log but explicit)
+.api.log
+.web.log
+.minio.log

@@ -2,7 +2,7 @@ import { IsDateString, IsEnum, IsNumberString, IsOptional, IsString, IsUUID } fr
 import { VoteChoice, VotingType } from '@prisma/client';
 
 export class CreateVotingDto {
-  @IsUUID()
+  @IsString()
   buildingId!: string;
 
   @IsString()
@@ -23,10 +23,15 @@ export class CreateVotingDto {
   // napr. "0.5001" pre nadpolovičnú väčšinu prítomných podielov
   @IsNumberString()
   quorumRequired!: string;
+
+  // Voliteľne — previaže hlasovanie so schôdzou (bodom programu)
+  @IsOptional()
+  @IsString()
+  meetingId?: string;
 }
 
 export class CastElectronicDto {
-  @IsUUID()
+  @IsString()
   apartmentId!: string;
 
   @IsEnum(VoteChoice)
@@ -37,7 +42,7 @@ export class CastElectronicDto {
 }
 
 export class CastPaperDto {
-  @IsUUID()
+  @IsString()
   apartmentId!: string;
 
   @IsEnum(VoteChoice)
@@ -49,4 +54,14 @@ export class CastPaperDto {
   @IsOptional()
   @IsDateString()
   castAt?: string;
+
+  // Splnomocnenie: apartmentId vlastníka, ktorý dal splnomocnenie
+  // tomuto apartmentu (proxyFromApartmentId je zdroj, apartmentId je cieľ/držiteľ).
+  @IsOptional()
+  @IsString()
+  proxyFromApartmentId?: string;
+
+  @IsOptional()
+  @IsString()
+  proxyDocumentKey?: string;
 }

@@ -18,11 +18,11 @@ import { TicketsService } from './tickets.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 class CreateTicketDto {
-  @IsUUID()
+  @IsString()
   buildingId!: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   apartmentId?: string;
 
   @IsString()
@@ -44,7 +44,7 @@ class SetStatusDto {
 }
 
 class AssignDto {
-  @IsUUID()
+  @IsString()
   assigneeId!: string;
 }
 

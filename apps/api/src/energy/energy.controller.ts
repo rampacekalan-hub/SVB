@@ -8,11 +8,11 @@ import { EnergyAllocationService } from './energy-allocation.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 class RegisterMeterDto {
-  @IsUUID()
+  @IsString()
   buildingId!: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   apartmentId?: string;
 
   @IsEnum(MeterType)
@@ -52,7 +52,7 @@ class IngestDto {
 }
 
 class AllocateDto {
-  @IsUUID()
+  @IsString()
   buildingId!: string;
 
   @IsDateString()

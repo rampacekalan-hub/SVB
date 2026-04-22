@@ -6,7 +6,7 @@ import { AnnouncementsService } from './announcements.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 class PublishDto {
-  @IsUUID()
+  @IsString()
   buildingId!: string;
 
   @IsString()
@@ -44,6 +44,11 @@ export class AnnouncementsController {
   @Get('feed')
   feed(@Req() req: { user: any }) {
     return this.svc.feed(req.user);
+  }
+
+  @Get('building/:buildingId')
+  buildingFeed(@Req() req: { user: any }, @Param('buildingId') buildingId: string) {
+    return this.svc.buildingFeed(req.user, buildingId);
   }
 
   @Patch('receipts/:id/read')

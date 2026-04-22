@@ -2,11 +2,43 @@
 <html lang="sk">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DomovPlus – Admin</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f766e" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0c0a09" media="(prefers-color-scheme: dark)" />
+    <meta name="description" content="DomovPlus — bezpečná správa bytového domu. Hlasovania, poruchy, dokumenty a energie na jednom mieste." />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%230f766e'/><stop offset='1' stop-color='%2314b8a6'/></linearGradient></defs><rect width='64' height='64' rx='14' fill='url(%23g)'/><path d='M16 30L32 16l16 14v18a2 2 0 0 1-2 2H18a2 2 0 0 1-2-2z' fill='none' stroke='white' stroke-width='4' stroke-linejoin='round' stroke-linecap='round'/><path d='M27 48V36h10v12' fill='none' stroke='white' stroke-width='4' stroke-linejoin='round' stroke-linecap='round'/></svg>" />
+    <link rel="preconnect" href="https://rsms.me" />
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+    <title>DomovPlus — správa bytového domu</title>
   </head>
   <body>
+    <a class="skip-link" href="#main">Preskočiť na obsah</a>
     <div id="root"></div>
+    <!--
+      V dev móde: odregistrujeme akýkoľvek starý service worker, ktorý zostal po
+      predošlom PWA buildi. Inak by užívateľovi v Chrome visel starý HTML/bundle
+      a nové zmeny by sa neprejavili ani cez Cmd+R.
+      V produkcii (Vite build) vite-plugin-pwa registruje čerstvý SW po dokončení.
+    -->
+    <script>
+      (async () => {
+        if (!('serviceWorker' in navigator)) return;
+        try {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          let unregistered = 0;
+          for (const reg of regs) { await reg.unregister(); unregistered++; }
+          if (unregistered > 0 && 'caches' in window) {
+            const names = await caches.keys();
+            for (const n of names) await caches.delete(n);
+            // Reload raz, aby sa spustil fresh bundle bez SW interception
+            if (!sessionStorage.getItem('dp.swReset')) {
+              sessionStorage.setItem('dp.swReset', '1');
+              location.reload();
+            }
+          }
+        } catch {}
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
