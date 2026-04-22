@@ -17,7 +17,6 @@ export function MarketingPage() {
   return (
     <div className="mk">
       <Hero />
-      <div className="mk-transition-to-light" aria-hidden="true" />
       <SocialProof />
       <RoleGateway variant="full" />
       <WaveDivider label="Ako to funguje" />
