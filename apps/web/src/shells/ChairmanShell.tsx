@@ -35,6 +35,7 @@ import { PaymentsPage } from './PaymentsPage';
 import { IssueBulkPage } from './InvoicePages';
 import { MembersPage } from './MembersPage';
 import { AuditPage } from './AuditPage';
+import { DocumentsPage } from './DocumentsPage';
 import { OnboardingChecklist } from '../components/OnboardingChecklist';
 import { Icon, IconName } from '../components/Icons';
 import type { Me } from '../types';
@@ -80,6 +81,7 @@ export function ChairmanShell({ me }: { me: Me }) {
           <Route path="revizie/nova" element={<NewRevisionPage />} />
           <Route path="byty" element={<ApartmentsPage />} />
           <Route path="ucastnici" element={<MembersPage />} />
+          <Route path="dokumenty" element={<DocumentsPage />} />
           <Route path="audit" element={<AuditPage />} />
           <Route path="burza" element={<ClassifiedsTab buildingId={membership.building.id} />} />
           <Route path="nastavenia" element={<AdminSettingsPage buildingId={membership.building.id} />} />
@@ -126,6 +128,7 @@ function Sidebar({ buildingId, buildingName }: { buildingId: string; buildingNam
           <NavItem to={`${base}/revizie`} icon="inspection" label="Revízie" />
           <NavItem to={`${base}/byty`} icon="apartment" label="Byty" />
           <NavItem to={`${base}/ucastnici`} icon="users" label="Účastníci" />
+          <NavItem to={`${base}/dokumenty`} icon="file" label="Dokumenty" />
           <NavItem to={`${base}/burza`} icon="bazaar" label="Burza" />
           <li className="shell-nav-group">Admin</li>
           <NavItem to={`${base}/nastavenia`} icon="settings" label="Nastavenia budovy" />

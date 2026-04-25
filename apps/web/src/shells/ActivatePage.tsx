@@ -21,7 +21,7 @@ import { PageHeader } from '../components/PageHeader';
 import { Btn } from '../components/Button';
 import { Field, Form, Row } from '../components/forms';
 import { StatusPill } from '../components/ui';
-import { RoleGateway } from '../components/RoleGateway';
+import { AuthRoleStrip } from '../components/AuthRoleStrip';
 import type { Me } from '../types';
 
 interface PreviewResult {
@@ -155,6 +155,7 @@ export function ActivatePage({ onLoggedIn }: { onLoggedIn: (me: Me) => void }) {
   return (
     <div className="auth-shell">
       <div className="auth-card" role="main" style={{ maxWidth: 520 }}>
+        <AuthRoleStrip />
         <PageHeader
           title={preview ? `Vitajte v ${preview.building.name}` : 'Aktivácia účtu'}
           subtitle={
@@ -189,7 +190,6 @@ export function ActivatePage({ onLoggedIn }: { onLoggedIn: (me: Me) => void }) {
             <p className="inline-meta" style={{ textAlign: 'center' }}>
               Máte už účet? <Link to="/prihlasenie">Prihlásiť sa</Link>
             </p>
-            <RoleGateway variant="compact" title="Ste v správnej sekcii?" />
           </>
         )}
 

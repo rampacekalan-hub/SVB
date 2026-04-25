@@ -24,6 +24,20 @@ export class AuthController {
     return this.auth.register(dto);
   }
 
+  /**
+   * Demo login — okamžité prihlásenie do read-only sandbox-u.
+   * Použitie z marketing stránky („Vyskúšať bez registrácie").
+   *
+   * Bezpečnosť: heslo demo účtu nikdy neopustí backend, frontend dostane len
+   * issued JWT tokeny. Demo účet má v seede len demo dáta a žiadne reálne PII.
+   * Throttle 5 / min / IP — chráni proti zneužitiu.
+   */
+  @Post('demo-login')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  demoLogin() {
+    return this.auth.demoLogin();
+  }
+
   @Post('register-admin')
   @Throttle({ default: { limit: 3, ttl: 60_000 } })
   registerAdmin(@Body() dto: RegisterAdminDto) {

@@ -43,7 +43,7 @@ export function OnboardingChecklist({
     },
     {
       done: stats.apartmentsCount > 0 && stats.pendingActivationCodes === 0 && stats.registeredOwners > 0,
-      skip: stats.apartmentsCount === 0,
+      locked: stats.apartmentsCount === 0,
       title: 'Rozdajte aktivačné kódy vlastníkom',
       body:
         stats.pendingActivationCodes > 0
@@ -56,7 +56,7 @@ export function OnboardingChecklist({
     },
     {
       done: stats.registrationRate >= 0.5,
-      skip: stats.apartmentsCount === 0,
+      locked: stats.apartmentsCount === 0,
       title: 'Zaregistrujte aspoň 50 % vlastníkov',
       body:
         stats.registrationRate >= 0.5
@@ -78,32 +78,35 @@ export function OnboardingChecklist({
     },
   ];
 
-  const visible = steps.filter((s) => !s.skip);
-  const completed = visible.filter((s) => s.done).length;
+  // Vždy zobrazujeme všetky kroky (aj locked), aby user videl celú cestu.
+  const completed = steps.filter((s) => s.done).length;
 
-  if (completed === visible.length) return null;
+  if (completed === steps.length) return null;
 
   return (
     <section className="dp-section" aria-labelledby="ob-h">
       <div className="oc">
         <div className="oc-head">
           <h2 id="ob-h" className="oc-title">Sprievodca rozbehom</h2>
-          <span className="oc-progress">{completed}/{visible.length} splnených</span>
+          <span className="oc-progress">{completed}/{steps.length} splnených</span>
         </div>
         <div className="oc-bar" aria-hidden="true">
-          <div className="oc-bar-fill" style={{ width: `${(completed / visible.length) * 100}%` }} />
+          <div className="oc-bar-fill" style={{ width: `${(completed / steps.length) * 100}%` }} />
         </div>
         <ol className="oc-list">
-          {visible.map((s, i) => (
-            <li key={i} className={`oc-item ${s.done ? 'done' : ''}`}>
+          {steps.map((s, i) => (
+            <li key={i} className={`oc-item ${s.done ? 'done' : ''} ${(s as any).locked ? 'locked' : ''}`}>
               <div className={`oc-num ${s.done ? 'done' : ''}`}>
                 {s.done ? '✓' : i + 1}
               </div>
               <div className="oc-body">
-                <div className="oc-it-title">{s.title}</div>
+                <div className="oc-it-title">
+                  {s.title}
+                  {(s as any).locked && <span className="oc-locked-tag"> · najskôr krok 1</span>}
+                </div>
                 <div className="oc-it-desc">{s.body}</div>
               </div>
-              {!s.done && (
+              {!s.done && !(s as any).locked && (
                 <Link to={s.action.to} className="ui-btn ui-btn-primary oc-action">
                   {s.action.label} →
                 </Link>

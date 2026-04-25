@@ -12,6 +12,11 @@ import { CommandPalette } from './components/CommandPalette';
 import { BuildingSwitcher } from './components/BuildingSwitcher';
 import { Avatar } from './components/Avatar';
 import { RoleGateway } from './components/RoleGateway';
+import { AuthRoleStrip } from './components/AuthRoleStrip';
+import { NotFoundPage } from './components/ErrorBoundary';
+import { TermsPage, PrivacyPage, DpaPage } from './legal/LegalPages';
+import { StatusPage, ChangelogPage } from './legal/StatusAndChangelog';
+import { MarketingMenu } from './marketing/MarketingMenu';
 
 const ROLE_LABEL: Record<string, string> = {
   OWNER: 'Vlastník',
@@ -21,32 +26,13 @@ const ROLE_LABEL: Record<string, string> = {
   ADMIN: 'Administrátor',
 };
 
-type Theme = 'auto' | 'light' | 'dark';
-
 export default function App() {
   const [me, setMe] = useState<Me | null>(null);
   const [loading, setLoading] = useState(true);
-  const [senior, setSenior] = useState(() => localStorage.getItem('dp.senior') === '1');
   const [locale, setLocale] = useState<Locale>(() => {
     const stored = localStorage.getItem('dp.locale') as Locale | null;
     return stored === 'SK' || stored === 'CS' ? stored : 'SK';
   });
-  const [theme, setTheme] = useState<Theme>(() => {
-    const t = localStorage.getItem('dp.theme') as Theme | null;
-    return t === 'light' || t === 'dark' || t === 'auto' ? t : 'auto';
-  });
-
-  useEffect(() => {
-    document.documentElement.dataset.senior = String(senior);
-    localStorage.setItem('dp.senior', senior ? '1' : '0');
-  }, [senior]);
-
-  useEffect(() => {
-    localStorage.setItem('dp.theme', theme);
-    const root = document.documentElement;
-    if (theme === 'auto') root.removeAttribute('data-theme');
-    else root.dataset.theme = theme;
-  }, [theme]);
 
   useEffect(() => {
     document.documentElement.lang = locale === 'CS' ? 'cs' : 'sk';
@@ -61,7 +47,6 @@ export default function App() {
     api<Me>('/users/me')
       .then((u) => {
         setMe(u);
-        if (u.seniorMode) setSenior(true);
         if (u.locale === 'SK' || u.locale === 'CS') setLocale(u.locale);
       })
       .catch(() => clearTokens())
@@ -79,14 +64,7 @@ export default function App() {
   if (!me) {
     return (
       <I18nContext.Provider value={locale}>
-        <Topbar
-          senior={senior}
-          locale={locale}
-          theme={theme}
-          onToggleSenior={() => setSenior((s) => !s)}
-          onChangeLocale={setLocale}
-          onCycleTheme={() => setTheme((t) => (t === 'auto' ? 'light' : t === 'light' ? 'dark' : 'auto'))}
-        />
+        <Topbar />
         <Routes>
           <Route path="/" element={<MarketingPage />} />
           <Route path="/prihlasenie" element={<Login onLogin={setMe} />} />
@@ -94,7 +72,12 @@ export default function App() {
           <Route path="/aktivacia" element={<ActivatePage onLoggedIn={setMe} />} />
           <Route path="/aktivacia/:code" element={<ActivatePage onLoggedIn={setMe} />} />
           <Route path="/r/:code" element={<ActivatePage onLoggedIn={setMe} />} />
-          <Route path="*" element={<Navigate to="/" />} />
+          <Route path="/obchodne-podmienky" element={<TermsPage />} />
+          <Route path="/ochrana-udajov" element={<PrivacyPage />} />
+          <Route path="/spracovanie-udajov" element={<DpaPage />} />
+          <Route path="/status" element={<StatusPage />} />
+          <Route path="/changelog" element={<ChangelogPage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </I18nContext.Provider>
     );
@@ -108,15 +91,7 @@ export default function App() {
 
   return (
     <I18nContext.Provider value={locale}>
-      <Topbar
-        me={me}
-        senior={senior}
-        locale={locale}
-        theme={theme}
-        onToggleSenior={() => setSenior((s) => !s)}
-        onChangeLocale={setLocale}
-        onCycleTheme={() => setTheme((t) => (t === 'auto' ? 'light' : t === 'light' ? 'dark' : 'auto'))}
-      />
+      <Topbar me={me} />
       <Routes>
         {/* Onboarding wizard — keď admin nemá budovu */}
         <Route path="/onboarding" element={<Onboarding me={me} onDone={setMe} />} />
@@ -135,6 +110,13 @@ export default function App() {
 
         {/* Account settings (cross-shell) */}
         <Route path="/nastavenia" element={<main className="shell-main" id="main" tabIndex={-1}><AccountSettings /></main>} />
+
+        {/* Legal + public pages accessible aj pre prihlásených */}
+        <Route path="/obchodne-podmienky" element={<TermsPage />} />
+        <Route path="/ochrana-udajov" element={<PrivacyPage />} />
+        <Route path="/spracovanie-udajov" element={<DpaPage />} />
+        <Route path="/status" element={<StatusPage />} />
+        <Route path="/changelog" element={<ChangelogPage />} />
 
         {/* Root → smart redirect */}
         <Route path="/" element={<RootRedirect me={me} primary={primary} />} />
@@ -172,31 +154,14 @@ function LegacyBuildingRedirect() {
 /*  Topbar                                                              */
 /* ------------------------------------------------------------------- */
 
-function Topbar({
-  me,
-  senior,
-  locale,
-  theme,
-  onToggleSenior,
-  onChangeLocale,
-  onCycleTheme,
-}: {
-  me?: Me;
-  senior: boolean;
-  locale: Locale;
-  theme: Theme;
-  onToggleSenior: () => void;
-  onChangeLocale: (l: Locale) => void;
-  onCycleTheme: () => void;
-}) {
+function Topbar({ me }: { me?: Me }) {
   const t = useT();
-  // Derive current building ID from URL /b/:id/... to feed the command palette.
   function activeBuildingId(): string | undefined {
     const m = /^\/b\/([^/]+)/.exec(location.pathname);
     return m?.[1];
   }
-  const themeIcon = theme === 'dark' ? '🌙' : theme === 'light' ? '☀️' : '🌓';
-  const themeTitle = theme === 'dark' ? 'Téma: tmavá (klik → auto)' : theme === 'light' ? 'Téma: svetlá (klik → tmavá)' : 'Téma: auto (klik → svetlá)';
+  const isOnMarketing = !me && location.pathname === '/';
+
   return (
     <header className="topbar" role="banner">
       {me && <MobileMenu me={me} />}
@@ -206,34 +171,8 @@ function Topbar({
         </span>
         DomovPlus
       </Link>
+      {isOnMarketing && <MarketingMenu />}
       <div className="row topbar-actions">
-        <button
-          type="button"
-          className="ghost topbar-btn"
-          onClick={onCycleTheme}
-          title={themeTitle}
-          aria-label={themeTitle}
-        >
-          <span style={{ fontSize: 18 }} aria-hidden="true">{themeIcon}</span>
-        </button>
-        <select
-          aria-label={t('nav.locale')}
-          value={locale}
-          onChange={(e) => onChangeLocale(e.target.value as Locale)}
-          className="locale-select"
-        >
-          <option value="SK">🇸🇰 SK</option>
-          <option value="CS">🇨🇿 CS</option>
-        </select>
-        <button
-          type="button"
-          className="ghost topbar-btn"
-          onClick={onToggleSenior}
-          aria-pressed={senior}
-          title={senior ? t('nav.seniorOff') : t('nav.seniorOn')}
-        >
-          <TextIcon size={18} />
-        </button>
         {me && <BuildingSwitcher me={me} />}
         {me && <CommandPalette me={me} buildingId={activeBuildingId()} />}
         {me && <NotificationBell />}
@@ -372,6 +311,7 @@ function Login({ onLogin }: { onLogin: (me: Me) => void }) {
   return (
     <div className="auth-shell">
       <div className="auth-card" role="main">
+        <AuthRoleStrip />
         <h1>Vitajte späť</h1>
         <p className="lede">Prihláste sa do vášho bytového domu.</p>
         <form onSubmit={submit} noValidate>
@@ -431,7 +371,6 @@ function Login({ onLogin }: { onLogin: (me: Me) => void }) {
             Aktivovať účet kódom →
           </Link>
         </div>
-        <RoleGateway variant="compact" title="Ste v správnej sekcii?" />
       </div>
     </div>
   );
@@ -476,6 +415,7 @@ function AdminRegister({ onLoggedIn }: { onLoggedIn: (me: Me) => void }) {
   return (
     <div className="auth-shell">
       <div className="auth-card" role="main">
+        <AuthRoleStrip />
         <h1>Vytvoriť účet správcu</h1>
         <p className="lede">
           Založíme si účet. V ďalšom kroku vytvoríte prvú budovu a nahráte byty.
@@ -529,7 +469,6 @@ function AdminRegister({ onLoggedIn }: { onLoggedIn: (me: Me) => void }) {
         <p style={{ marginTop: '1rem', textAlign: 'center', color: 'var(--fg-muted)' }}>
           Máte už účet? <Link to="/prihlasenie">Prihlásiť sa</Link>
         </p>
-        <RoleGateway variant="compact" title="Alebo inou cestou" />
       </div>
     </div>
   );
@@ -2004,7 +1943,7 @@ function AccountSettings() {
     }
     const sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlB64ToUint8Array(publicKey),
+      applicationServerKey: urlB64ToUint8Array(publicKey) as BufferSource,
     });
     await api('/push/subscribe', {
       method: 'POST',

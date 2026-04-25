@@ -12,6 +12,21 @@ export interface AuditInput {
   userAgent?: string | null;
 }
 
+/**
+ * Deterministická JSON serializácia — sort keys rekurzívne.
+ * Potrebné pre SHA-256 hash chain: Prisma vracia JSON payload s kľúčmi
+ * v alphabetical order, JS objekty majú insertion order. Bez sortovania
+ * by bol hash zapísaný inak než re-compute pri verify → false positive
+ * „reťaz narušená".
+ */
+function canonical(v: unknown): string {
+  if (v === null || v === undefined) return 'null';
+  if (typeof v !== 'object') return JSON.stringify(v);
+  if (Array.isArray(v)) return '[' + v.map(canonical).join(',') + ']';
+  const keys = Object.keys(v as object).sort();
+  return '{' + keys.map((k) => JSON.stringify(k) + ':' + canonical((v as any)[k])).join(',') + '}';
+}
+
 @Injectable()
 export class AuditService {
   constructor(private readonly prisma: PrismaService) {}
@@ -24,7 +39,7 @@ export class AuditService {
       });
       const prevHash = last?.hash ?? null;
       const occurredAt = new Date();
-      const material = JSON.stringify({
+      const material = canonical({
         prevHash,
         occurredAt: occurredAt.toISOString(),
         actorId: input.actorId ?? null,
@@ -126,7 +141,7 @@ export class AuditService {
     });
     let prevHash: string | null = null;
     for (const ev of events) {
-      const material: string = JSON.stringify({
+      const material = canonical({
         prevHash,
         occurredAt: ev.occurredAt.toISOString(),
         actorId: ev.actorId,

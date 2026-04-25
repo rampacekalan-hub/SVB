@@ -74,7 +74,16 @@ export default defineConfig({
     }),
   ],
   server: {
-    port: 5173,
+    // Port 5174 (nie default 5173) — nový origin, browseri tam nemajú
+    // zapamätané žiadne legacy service workery z predchádzajúcich dev sessions.
+    port: 5174,
+    strictPort: true,
+    // Dev server posiela no-cache hlavičky, aby si Safari/Chrome
+    // nezačali znova cachovať HTML pri rýchlych HMR zmenách.
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+      'Pragma': 'no-cache',
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:3100',

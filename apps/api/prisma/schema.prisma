@@ -54,6 +54,8 @@ model User {
   paperVotes     VoteRecord[] @relation("PaperVoteRecorder")
   createdMeetings Meeting[]  @relation("MeetingCreator")
   meetingAttendance MeetingAttendance[]
+  createdIncomingInvoices  IncomingInvoice[]           @relation("IncomingInvoiceCreator")
+  uploadedInvoiceAttachments IncomingInvoiceAttachment[] @relation("IncomingInvoiceUploader")
 }
 
 model PasswordResetToken {
@@ -125,6 +127,21 @@ model Building {
   ico            String?  // IČO správcu / SVB
   legalForm      String?  // "SVB", "BD", "SVJ"
   totalShares    Decimal  @default(0) @db.Decimal(20, 6)
+
+  // Fakturačné údaje — dosadené ako default na každú vystavenú faktúru.
+  // Možno editovať per-budova v nastaveniach.
+  billingName       String?  // Názov SVB / BD na faktúre (môže sa líšiť od `name`)
+  billingIco        String?  // IČO odberateľa pri vystavovaní (zvyčajne = `ico`)
+  billingDic        String?  // DIČ
+  billingVatId      String?  // IČ DPH (ak je platca)
+  billingAddress    String?  // Fakturačná adresa (môže sa líšiť od `address`)
+  billingIban       String?  // Bankový účet pre prijímanie platieb
+  billingBic        String?  // SWIFT/BIC
+  billingBankName   String?  // Názov banky (UI helper)
+  billingRegistry   String?  // Zápis v registri (napr. "Okresný úrad Bratislava III, OPS-…")
+  invoiceNumberPrefix String? // Prefix evidenčného čísla (napr. "2026-FA-")
+  invoiceFooterNote   String? // Pätička na PDF (napr. "SVB nie je platcom DPH")
+
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -139,6 +156,8 @@ model Building {
   meetings       Meeting[]
   revisions      Revision[]
   classifieds    Classified[]
+  suppliers      Supplier[]
+  incomingInvoices IncomingInvoice[]
 
   @@index([country])
 }
@@ -704,4 +723,134 @@ model AuditEvent {
 
   @@index([occurredAt])
   @@index([resourceType, resourceId])
+}
+
+// ============================================================
+// PRIJATÉ FAKTÚRY (faktúry od dodávateľov pre SVB/BD)
+// ============================================================
+
+enum IncomingInvoiceStatus {
+  DRAFT      // pri uploade, kým sa nepotvrdia údaje (po OCR)
+  PENDING    // potvrdená, čaká na úhradu
+  APPROVED   // schválená výborom (nepovinné)
+  PAID       // uhradená
+  CANCELLED  // zrušená / nesprávne vystavená
+}
+
+/// Dodávateľ — opakujúce sa firmy ktoré fakturujú SVB.
+/// Energie, údržba, výťahový servis, plynár, advokát, …
+///
+/// Ak je IČO známe, pri uploadu faktúry sa dodávateľ automaticky priradí.
+/// Predseda nemusí udaje vypĺňať druhýkrát.
+model Supplier {
+  id          String   @id @default(uuid())
+  buildingId  String
+  building    Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  name        String
+  ico         String?
+  dic         String?
+  vatId       String?  // IČ DPH
+  iban        String?
+  email       String?
+  phone       String?
+  address     String?
+  category    String?  // voľný text — "Energie", "Výťah", "Komín", "Účtovníctvo", ...
+  note        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  invoices    IncomingInvoice[]
+
+  @@unique([buildingId, ico])
+  @@index([buildingId])
+  @@index([buildingId, name])
+}
+
+model IncomingInvoice {
+  id              String                @id @default(uuid())
+  buildingId      String
+  building        Building              @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  supplierId      String?
+  supplier        Supplier?             @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+
+  // Údaje z faktúry (vyplnené ručne alebo OCR-om)
+  invoiceNumber   String?               // číslo faktúry od dodávateľa
+  variableSymbol  String?               // VS pre úhradu
+  issueDate       DateTime?
+  dueDate         DateTime?
+  taxableDate     DateTime?             // dátum dodania
+  amount          Decimal               @db.Decimal(14, 2)
+  currency        String                @default("EUR")
+  iban            String?               // kam zaplatiť (z faktúry)
+  description     String?
+  category        String?               // "Energie", "Výťah", "Materiál", ...
+  status          IncomingInvoiceStatus @default(DRAFT)
+  paidAt          DateTime?
+  paidAmount      Decimal?              @db.Decimal(14, 2)
+  paidNote        String?               // VS, source, manuálna poznámka
+
+  // Meta
+  createdById     String?
+  createdBy       User?                 @relation("IncomingInvoiceCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  ocrText         String?               // celý surový text z OCR (pre later regex / search)
+  ocrConfidence   Decimal?              @db.Decimal(5, 4) // 0–1, ako spoľahlivo OCR rozpoznal
+
+  attachments     IncomingInvoiceAttachment[]
+
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@index([buildingId, status])
+  @@index([buildingId, dueDate])
+  @@index([supplierId])
+}
+
+/// Príloha prijatej faktúry — fotky, PDF, sken.
+/// Jedna faktúra môže mať viac príloh (napr. fotka + zoznam položiek).
+model IncomingInvoiceAttachment {
+  id              String          @id @default(uuid())
+  invoiceId       String
+  invoice         IncomingInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  storageKey      String
+  filename        String
+  mimeType        String
+  sizeBytes       Int
+  sha256          String
+  uploadedAt      DateTime        @default(now())
+  uploadedById    String?
+  uploadedBy      User?           @relation("IncomingInvoiceUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+}
+
+// ============================================================
+// PHONE PAIRING (mobil ↔ desktop) — pre fotenie faktúr
+// ============================================================
+
+/// Predseda na PC vygeneruje QR kód → mobil ho naskenuje → otvorí URL
+/// s tokenom → mobil môže nahrať fotky priamo do session na PC.
+/// Token je krátkodobý (15 min), jednorazový pre konkrétny use case.
+enum PhonePairingPurpose {
+  INCOMING_INVOICE_PHOTO
+  TICKET_PHOTO
+  DOCUMENT_PHOTO
+}
+
+model PhonePairingSession {
+  id          String              @id @default(uuid())
+  token       String              @unique // pre URL: domovplus.sk/p/<token>
+  purpose     PhonePairingPurpose
+  buildingId  String
+  // Voliteľne previazané na konkrétny resource (napr. ticketId, invoiceId).
+  contextId   String?
+  createdById String
+  expiresAt   DateTime
+  consumedAt  DateTime?           // kedy mobil prvýkrát uploadol
+  // Zoznam storageKey-ov nahraných cez túto session (CSV)
+  uploadedKeys String?
+
+  createdAt   DateTime            @default(now())
+
+  @@index([token])
+  @@index([expiresAt])
 }

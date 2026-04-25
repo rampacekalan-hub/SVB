@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Req,
   Res,
@@ -91,6 +92,13 @@ export class BuildingsController {
   @Get(':id')
   detail(@Req() req: { user: any }, @Param('id') id: string) {
     return this.buildings.detail(req.user, id);
+  }
+
+  /** Update fakturačných údajov budovy (CHAIRMAN/MANAGER). */
+  @Patch(':id/billing')
+  @Roles('CHAIRMAN', 'MANAGER', 'ADMIN')
+  updateBilling(@Req() req: { user: any }, @Param('id') id: string, @Body() dto: any) {
+    return this.buildings.updateBilling(req.user, id, dto);
   }
 
   @Get(':id/admin-stats')

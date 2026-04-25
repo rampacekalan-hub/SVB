@@ -306,14 +306,59 @@ export class VotingService {
     });
   }
 
-  async getDetail(user: AuthedUser, votingId: string) {
+  async getMinutesDownloadUrl(user: AuthedUser, votingId: string) {
     const voting = await this.prisma.voting.findUnique({
       where: { id: votingId },
-      include: { result: true, records: true, building: true },
+      include: { result: true },
     });
     if (!voting) throw new NotFoundException();
     this.assertInBuilding(user, voting.buildingId);
-    return voting;
+    if (!voting.result?.pdfStorageKey) {
+      return { url: null, error: 'PDF zápisnica ešte nebola vygenerovaná. Najprv hlasovanie uzavrite.' };
+    }
+    const url = await this.storage.getPresignedUrl(voting.result.pdfStorageKey, 600);
+    return { url, sha256: voting.result.pdfSha256 };
+  }
+
+  async getDetail(user: AuthedUser, votingId: string) {
+    const voting = await this.prisma.voting.findUnique({
+      where: { id: votingId },
+      include: {
+        result: true,
+        records: {
+          include: { apartment: { select: { id: true, unitNumber: true } } },
+          orderBy: { castAt: 'desc' },
+        },
+        building: {
+          include: {
+            apartments: {
+              select: { id: true, unitNumber: true, ownershipShare: true },
+              orderBy: { unitNumber: 'asc' },
+            },
+          },
+        },
+      },
+    });
+    if (!voting) throw new NotFoundException();
+    this.assertInBuilding(user, voting.buildingId);
+
+    // Live tally — aj počas OPEN status-u, aby predseda + vlastníci videli priebežné výsledky
+    let liveTally = null;
+    if (!voting.result) {
+      try {
+        liveTally = await this.tally.tally(votingId);
+      } catch {
+        // Tally môže zlyhať pre nedostatočné dáta — ignorujeme, vrátime null
+      }
+    }
+
+    // Zoznam apartmentov ktoré ešte nehlasovali (pre predsedu — koho upozorniť)
+    const votedApartmentIds = new Set(voting.records.map((r) => r.apartmentId));
+    const notVotedApartments = voting.building.apartments.filter(
+      (a) => !votedApartmentIds.has(a.id),
+    );
+
+    return { ...voting, liveTally, notVotedApartments };
   }
 
   private async createVoteRecord(input: {

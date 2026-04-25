@@ -21,6 +21,10 @@ import { LeadsModule } from './leads/leads.module';
 import { PushModule } from './push/push.module';
 import { RevisionsModule } from './revisions/revisions.module';
 import { ClassifiedsModule } from './classifieds/classifieds.module';
+import { HealthModule } from './health/health.module';
+import { SuppliersModule } from './suppliers/suppliers.module';
+import { IncomingInvoicesModule } from './incoming-invoices/incoming-invoices.module';
+import { PhonePairingModule } from './phone-pairing/phone-pairing.module';
 
 @Module({
   imports: [
@@ -45,6 +49,10 @@ import { ClassifiedsModule } from './classifieds/classifieds.module';
     LeadsModule,
     RevisionsModule,
     ClassifiedsModule,
+    HealthModule,
+    SuppliersModule,
+    IncomingInvoicesModule,
+    PhonePairingModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

@@ -38,6 +38,49 @@ export class BuildingsService {
   }
 
   /**
+   * Update fakturačných údajov — meno, IČO, IBAN, atď.
+   * Volajú to chairman/manager z Settings, alebo z onboarding wizardu.
+   */
+  async updateBilling(
+    user: AuthedUser,
+    buildingId: string,
+    patch: Partial<{
+      billingName: string | null;
+      billingIco: string | null;
+      billingDic: string | null;
+      billingVatId: string | null;
+      billingAddress: string | null;
+      billingIban: string | null;
+      billingBic: string | null;
+      billingBankName: string | null;
+      billingRegistry: string | null;
+      invoiceNumberPrefix: string | null;
+      invoiceFooterNote: string | null;
+    }>,
+  ) {
+    if (!user.memberships.some((m) => m.buildingId === buildingId && ['CHAIRMAN', 'MANAGER', 'ADMIN'].includes(m.role))) {
+      throw new ForbiddenException();
+    }
+    // Normalize IBAN — odstráni medzery, uppercase
+    const data: any = { ...patch };
+    if (typeof data.billingIban === 'string') {
+      data.billingIban = data.billingIban.replace(/\s+/g, '').toUpperCase();
+    }
+    const updated = await this.prisma.building.update({
+      where: { id: buildingId },
+      data,
+    });
+    await this.audit.record({
+      actorId: user.id,
+      action: 'BUILDING_BILLING_UPDATED',
+      resourceType: 'Building',
+      resourceId: buildingId,
+      payload: { fields: Object.keys(patch) },
+    });
+    return updated;
+  }
+
+  /**
    * Založí novú budovu a prihláseného používateľa nastaví ako CHAIRMAN.
    * Použité v onboarding wizarde pri prvom spustení admin účtu.
    */

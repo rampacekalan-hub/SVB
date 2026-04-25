@@ -170,6 +170,29 @@ export class AuthService {
     };
   }
 
+  /**
+   * Demo login — vydá JWT tokeny pre seedový demo účet.
+   * Žiadne heslo z frontendu — používame fixný env DEMO_EMAIL.
+   * Vyžaduje aby seed bol spustený a používateľ existoval.
+   */
+  async demoLogin() {
+    const email = process.env.DEMO_EMAIL || 'predseda@domovplus.local';
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user || !user.active) {
+      throw new UnauthorizedException(
+        'Demo účet zatiaľ nie je dostupný — pripravujeme ho. Skúste „Začať zdarma" alebo nás kontaktujte.',
+      );
+    }
+    await this.audit.record({
+      actorId: user.id,
+      action: 'USER_LOGIN',
+      resourceType: 'User',
+      resourceId: user.id,
+      payload: { demo: true },
+    });
+    return this.issueTokens(user.id, user.email, false);
+  }
+
   async login(email: string, password: string, totpToken?: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user || !user.active) {

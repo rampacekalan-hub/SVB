@@ -258,16 +258,19 @@ export function EmptyState({
 export function Section({
   title,
   action,
+  extra,
   children,
 }: {
   title: string;
   action?: { label: string; to?: string; onClick?: () => void };
+  extra?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <section className="dp-section">
       <header className="dp-section-head">
         <h2 className="dp-section-title">{title}</h2>
+        {extra}
         {action && <ActionButton action={action} />}
       </header>
       {children}

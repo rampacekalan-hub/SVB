@@ -83,4 +83,10 @@ export class VotingController {
   detail(@Req() req: { user: any }, @Param('id') id: string) {
     return this.voting.getDetail(req.user, id);
   }
+
+  /** Vráti presigned URL pre PDF zápisnicu. Klient si ho otvorí v novom okne. */
+  @Get(':id/minutes-url')
+  async minutesUrl(@Req() req: { user: any }, @Param('id') id: string) {
+    return this.voting.getMinutesDownloadUrl(req.user, id);
+  }
 }

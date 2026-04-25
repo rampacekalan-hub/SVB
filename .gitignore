@@ -17,6 +17,8 @@ web-build/
 .turbo/
 storage/
 uploads/
+backups/
+apps/api/storage/
 *.tsbuildinfo
 .pnpm-store/
 

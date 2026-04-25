@@ -1,21 +1,24 @@
 /**
- * HeroPreview — live-looking screenshot appky v hero sekcii.
+ * HeroPreview — dual mockup (desktop browser + mobile phone).
  *
- * Vytvorený z reálnych komponentov aplikácie (KPITile, AttentionCard, StatusPill)
- * aby user hneď videl, ako appka reálne vyzerá — nie generický mockup.
- * Obsahuje floating UI karty (toast, quick action) pre pocit živej appky.
+ * Desktop: chairman dashboard s KPI tiles + 2 attention cards
+ * Mobile: resident view s poruchou + hlasovaním (prekrýva desktop cez roh)
  */
-import { KPITile, AttentionCard, StatusPill } from '../components/ui';
+import { KPITile, AttentionCard } from '../components/ui';
 
 export function HeroPreview() {
   return (
     <div className="hero-preview" aria-hidden="true">
+      {/* Desktop browser mockup */}
       <div className="hero-preview-browser">
         <div className="hero-preview-topbar">
           <span className="hero-preview-dot" style={{ background: '#fc6058' }} />
           <span className="hero-preview-dot" style={{ background: '#fed84b' }} />
           <span className="hero-preview-dot" style={{ background: '#36cd4d' }} />
           <span className="hero-preview-url">domovplus.sk/b/hviezdoslavova-12</span>
+          <span className="hero-preview-live">
+            <span className="hero-preview-live-dot" /> Live
+          </span>
         </div>
         <div className="hero-preview-body">
           <div className="hero-preview-title">
@@ -50,21 +53,35 @@ export function HeroPreview() {
         </div>
       </div>
 
-      {/* Floating UI */}
-      <div className="hero-float hero-float-toast">
-        <span className="hero-float-dot" />
-        <div>
-          <strong>Peter uhradil faktúru</strong>
-          <div>124,50 € · byt 02</div>
-        </div>
-      </div>
+      {/* Mobile phone mockup — overlap pravý dolný roh */}
+      <div className="hero-preview-phone">
+        <div className="phone-notch" />
+        <div className="phone-screen">
+          <div className="phone-statusbar">
+            <span>9:41</span>
+            <span className="phone-signal">•••</span>
+          </div>
+          <div className="phone-app-head">
+            <div className="phone-app-greet">Dobré ráno, Peter</div>
+            <div className="phone-app-sub">Byt 02 · Hviezdoslavova 12</div>
+          </div>
 
-      <div className="hero-float hero-float-qr">
-        <div className="hero-qr-stripes" />
-        <div className="hero-qr-text">
-          <StatusPill tone="ok" dot>QR platba pripravená</StatusPill>
-          <div style={{ marginTop: 4, fontSize: 11, color: 'var(--fg-muted)' }}>
-            Naskenovať v mobilnej banke
+          <div className="phone-qr-card">
+            <div className="phone-qr-pattern" />
+            <div className="phone-qr-body">
+              <div className="phone-qr-title">Faktúra · január</div>
+              <div className="phone-qr-amount">124,50 €</div>
+              <div className="phone-qr-cta">Zaplatiť QR</div>
+            </div>
+          </div>
+
+          <div className="phone-vote-card">
+            <div className="phone-vote-meta">HLASOVANIE</div>
+            <div className="phone-vote-title">Rekonštrukcia strechy</div>
+            <div className="phone-vote-buttons">
+              <span className="phone-vote-btn phone-vote-yes">✓ Áno</span>
+              <span className="phone-vote-btn phone-vote-no">✕ Nie</span>
+            </div>
           </div>
         </div>
       </div>

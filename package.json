@@ -17,9 +17,17 @@
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
     "db:migrate": "npm run prisma:migrate --workspace=@domovplus/api",
-    "db:seed": "npm run prisma:seed --workspace=@domovplus/api"
+    "db:seed": "npm run prisma:seed --workspace=@domovplus/api",
+    "db:backup": "scripts/backup-db.sh",
+    "marketing:screenshots": "node scripts/capture-screenshots.mjs",
+    "marketing:og": "node scripts/generate-og-image.mjs",
+    "marketing:lead-magnet": "node scripts/generate-lead-magnet.mjs",
+    "marketing:all": "npm run marketing:lead-magnet && npm run marketing:og && npm run marketing:screenshots"
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.59.1"
   }
 }

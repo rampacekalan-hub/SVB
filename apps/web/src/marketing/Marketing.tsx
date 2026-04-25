@@ -1,136 +1,103 @@
 /**
- * Marketing / landing page.
+ * Marketing / landing page — clean, modern, less-is-more (Vercel/Linear vibe).
  *
- * High-converting layout podľa redesign briefu:
- *   Hero → Social proof → Problem/Solution → Features (F→B→O) → How it works
- *   → Pricing → Testimonials → FAQ → Final CTA → Footer
+ * Štruktúra:
+ *   1. Hero          — veľké H1 + app preview
+ *   2. Proof row     — kde nás používajú (miesta, jeden riadok)
+ *   3. Feature strip — 6 kariet s ikonami
+ *   4. Role gateway  — pre každú rolu
+ *   5. How it works  — 3 kroky
+ *   6. Pricing       — 3 stĺpce
+ *   7. Quote         — jeden veľký citát
+ *   8. Final CTA     — forma + tlačidlo
+ *   9. Footer
  *
- * Každá sekcia používa `<Link>` (SPA) pre vnútorné navigácie.
+ * Reveal komponent aplikuje fade-up animáciu na scroll cez IntersectionObserver.
  */
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { api } from '../api';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { api, setTokens } from '../api';
 import { RoleGateway } from '../components/RoleGateway';
 import { HeroPreview } from './HeroPreview';
+import { useMarketingCopy } from './copy';
 
 export function MarketingPage() {
+  // Scroll-to-top pri navigácii cez # linky (Safari bug fix)
+  useEffect(() => {
+    if (location.hash) return;
+    window.scrollTo(0, 0);
+  }, []);
   return (
     <div className="mk">
       <Hero />
-      <SocialProof />
+      <ProofRow />
+      <FeatureStrip />
+      <BeforeAfter />
+      <ProductShowcase />
       <RoleGateway variant="full" />
-      <WaveDivider label="Ako to funguje" />
-      <Problem />
-      <Features />
-      <Preview />
       <HowItWorks />
       <Pricing />
-      <Testimonials />
       <FAQ />
+      <LeadMagnet />
+      <Quote />
+      <DemoCall />
       <FinalCTA />
       <Footer />
     </div>
   );
 }
 
-function WaveDivider({ label }: { label?: string }) {
-  return (
-    <div className="mk-wave" aria-hidden="true">
-      <div className="mk-wave-dot">
-        <svg width="10" height="10" viewBox="0 0 10 10">
-          <circle cx="5" cy="5" r="3" fill="currentColor" />
-          <circle cx="5" cy="5" r="4.5" fill="none" stroke="currentColor" strokeOpacity="0.4" />
-        </svg>
-        {label && <span>{label}</span>}
-      </div>
-    </div>
-  );
-}
-
-/* ============================ Role section ============================ */
-
-/* (Role sekcia presunutá do shared RoleGateway komponentu) */
-
-/* ============================ Preview mockup ============================ */
-
-function Preview() {
-  return (
-    <section className="mk-section mk-grid-light" aria-labelledby="prev-h">
-      <div className="mk-container">
-        <h2 id="prev-h" className="mk-h2">Takto to vyzerá v praxi</h2>
-        <p className="mk-sub">Náhľad dashboardu predsedu — priority-triedený attention row namiesto zoznamu položiek.</p>
-        <div className="mk-preview">
-          <div className="mk-preview-bar">
-            <span className="mk-preview-dot" /><span className="mk-preview-dot" /><span className="mk-preview-dot" />
-            <span className="mk-preview-url">domovplus.sk/b/hviezdoslavova-12</span>
-          </div>
-          <div className="mk-preview-body">
-            <div className="mk-preview-greet">
-              <strong>Dobrý deň, Jana.</strong>
-              <span>3 veci čakajú na rozhodnutie.</span>
-            </div>
-            <div className="mk-preview-cards">
-              <div className="mk-prev-card urgent">
-                <span className="mk-prev-tag">🔴 Kritická porucha</span>
-                <strong>Výtok vody v pivnici</strong>
-                <span className="mk-prev-meta">pred 2 h · byt 05 · nepridelená</span>
-                <span className="mk-prev-btn">Prideliť údržbárovi</span>
-              </div>
-              <div className="mk-prev-card urgent">
-                <span className="mk-prev-tag">🔴 Hlasovanie končí</span>
-                <strong>Rekonštrukcia strechy</strong>
-                <span className="mk-prev-meta">za 6 h · 34 % kvórum</span>
-                <span className="mk-prev-btn">Pripomenúť</span>
-              </div>
-              <div className="mk-prev-card pending">
-                <span className="mk-prev-tag">🟠 Revízia 12 dní</span>
-                <strong>Úradná skúška výťahu</strong>
-                <span className="mk-prev-meta">Schindler SK · +421 2 …</span>
-                <span className="mk-prev-btn">Naplánovať</span>
-              </div>
-            </div>
-            <div className="mk-preview-stats">
-              <div><span>6/6</span>registrovaní</div>
-              <div><span>83 %</span>čítanosť oznamov</div>
-              <div><span>8 420 €</span>fond opráv</div>
-              <div><span>0</span>revízie po splatnosti</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ================================ Hero ================================ */
+/* =============================== Hero =============================== */
 
 function Hero() {
+  const c = useMarketingCopy();
+  const [demoBusy, setDemoBusy] = useState(false);
+  const [demoErr, setDemoErr] = useState<string | null>(null);
+
+  async function startDemo() {
+    setDemoBusy(true);
+    setDemoErr(null);
+    try {
+      const res = await api<{ accessToken: string; refreshToken: string }>('/auth/demo-login', {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      setTokens(res.accessToken, res.refreshToken);
+      window.location.assign('/');
+    } catch (e) {
+      setDemoErr((e as Error).message);
+      setDemoBusy(false);
+    }
+  }
+
   return (
-    <section className="mk-hero" aria-labelledby="hero-h">
+    <section className="mk-hero" id="hero" aria-labelledby="hero-h">
       <div className="mk-hero-inner">
         <div className="mk-hero-text">
           <span className="mk-eyebrow">
-            <span className="mk-dot" /> Pre SVB · BD · SVJ v SR a ČR
+            <span className="mk-dot" /> {c.hero.eyebrow}
           </span>
           <h1 id="hero-h" className="mk-h1">
-            Bytový dom bez <span className="mk-accent">papierov, chatov</span> a zmätku.
+            {c.hero.h1Pre}<span className="mk-accent">{c.hero.h1Accent}</span>{c.hero.h1Post}
           </h1>
-          <p className="mk-lead">
-            DomovPlus je operačný systém pre bytový dom. Hlasovania, faktúry, poruchy, schôdze
-            a komunikácia so susedmi — všetko na jednom mieste, aj pre tých, ktorí technike
-            nerozumejú.
-          </p>
+          <p className="mk-lead">{c.hero.lead}</p>
           <div className="mk-cta">
-            <Link to="/registracia" className="mk-btn mk-btn-primary">
-              Vyskúšať zadarmo 30 dní →
+            <button
+              type="button"
+              onClick={startDemo}
+              disabled={demoBusy}
+              className="mk-btn mk-btn-primary"
+            >
+              {demoBusy ? c.hero.ctaDemoBusy : c.hero.ctaDemo}
+            </button>
+            <Link to="/registracia" className="mk-btn mk-btn-secondary">
+              {c.hero.ctaFree}
             </Link>
-            <a href="#how" className="mk-btn mk-btn-secondary">
-              Ako to funguje
-            </a>
           </div>
-          <p className="mk-trust">
-            Používajú nás SVB z Bratislavy, Trnavy a Košíc · bez platobnej karty · 14-denná
-            záruka vrátenia peňazí
+          {demoErr && <p className="mk-err">{demoErr}</p>}
+          <p className="mk-trust">{c.hero.trust}</p>
+          <p className="mk-trust mk-trust-alt">
+            <a href="#demo-call">{c.hero.trustAlt}</a>
           </p>
         </div>
         <HeroPreview />
@@ -139,333 +106,629 @@ function Hero() {
   );
 }
 
-/* =========================== Social proof ============================ */
+/* =============================== Proof =============================== */
 
-function SocialProof() {
-  const quotes = [
-    { by: 'Jana, predseda SVB', city: 'Bratislava', body: 'Ušetril mi 4 hodiny mesačne.' },
-    { by: 'Marek, správca', city: 'Trnava', body: 'Konečne viem, kto zaplatil a kto nie.' },
-    { by: 'Lucia, vlastníčka', city: 'Brno', body: 'Hlasujem z mobilu cez kávu v práci.' },
-  ];
+function ProofRow() {
+  const c = useMarketingCopy();
   return (
-    <section className="mk-section mk-proof" aria-label="Referencie">
-      <div className="mk-container">
-        <div className="mk-proof-grid">
-          {quotes.map((q) => (
-            <div key={q.by} className="mk-proof-item">
-              <p className="mk-proof-body">„{q.body}"</p>
-              <p className="mk-proof-by">— {q.by}, {q.city}</p>
+    <Reveal>
+      <section className="mk-pilot-banner" aria-label="Pilot">
+        <div className="mk-container">
+          <div className="mk-pilot-inner">
+            <div className="mk-pilot-badge">
+              <span className="mk-pilot-pulse" aria-hidden="true" />
+              {c.pilot.badge}
             </div>
-          ))}
+            <div className="mk-pilot-text">
+              <strong>{c.pilot.text.strong}</strong>{c.pilot.text.rest}
+            </div>
+            <a href="#demo-call" className="mk-pilot-cta">{c.pilot.cta}</a>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </Reveal>
   );
 }
 
-/* ============================ Problem / After =========================== */
+/* =========================== Feature strip =========================== */
 
-function Problem() {
-  const without = [
-    'Oznamy na papieri, ktoré nikto nečíta',
-    'WhatsApp skupina, kde sa susedia hádajú',
-    'Hlasovania na schôdzi o 19:00 v stredu',
-    'Excel tabuľka s faktúrami od 2019',
-    'Porucha = 15 SMS predsedovi o polnoci',
-  ];
-  const withIt = [
-    'Oznam s potvrdením prečítania',
-    'Diskusia pri oznámení, nie v 3 chatoch',
-    'Hlasovanie cez týždeň, kedykoľvek sa hodí',
-    'QR kód na faktúre, peniaze na účte',
-    'Fotka poruchy → údržbár to vie za minútu',
-  ];
+function FeatureStrip() {
+  const c = useMarketingCopy();
+  const icons = [<IcoVote />, <IcoMoney />, <IcoWrench />, <IcoCalendar />, <IcoTool />, <IcoShield />, <IcoMegaphone />, <IcoEnergy />, <IcoBazaar />];
+  const items = c.features.items.map((it, i) => ({ t: it.t, b: it.b, i: icons[i] }));
   return (
-    <section className="mk-section mk-section-warm mk-noise" aria-labelledby="problem-h">
-      <div className="mk-container">
-        <h2 id="problem-h" className="mk-h2">Bytový dom bez chaosu</h2>
-        <p className="mk-sub">Takto to vyzerá predtým a potom.</p>
-        <div className="mk-ba-grid">
-          <div className="mk-ba mk-ba-before">
-            <h3>Bez DomovPlus</h3>
-            <ul>{without.map((x) => <li key={x}>❌ {x}</li>)}</ul>
-          </div>
-          <div className="mk-ba mk-ba-after">
-            <h3>S DomovPlus</h3>
-            <ul>{withIt.map((x) => <li key={x}>✅ {x}</li>)}</ul>
+    <Reveal>
+      <section className="mk-section mk-soft" id="funkcie" aria-labelledby="feat-h">
+        <div className="mk-container">
+          <SectionHead
+            kicker={c.features.kicker}
+            title={c.features.title}
+            subtitle={c.features.subtitle}
+          />
+          <div className="feat-grid">
+            {items.map((f, i) => (
+              <article key={i} className="feat-card" style={{ ['--stagger' as any]: `${i * 60}ms` }}>
+                <div className="feat-icon" aria-hidden="true">{f.i}</div>
+                <h3 className="feat-title">{f.t}</h3>
+                <p className="feat-body">{f.b}</p>
+              </article>
+            ))}
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </Reveal>
   );
 }
 
-/* =============================== Features (F→B→O) ============================== */
+/* ============================ Before / After ============================ */
 
-function Features() {
-  const items = [
-    {
-      t: 'Online hlasovanie',
-      f: 'Vlastníci hlasujú z mobilu počas celého týždňa',
-      b: 'Výsledok máte za 3 dni, nie po 2 mesiacoch plánovania schôdze.',
-    },
-    {
-      t: 'Faktúry s QR platbou',
-      f: 'Vlastník naskenuje EPC/SEPA QR kód — banka mu predvyplní prevod',
-      b: 'Z 30 vlastníkov platí do termínu 28, nie 18.',
-    },
-    {
-      t: 'Hlásenie porúch',
-      f: 'Fotka + popis z mobilu, údržbár dostane push okamžite',
-      b: 'Opravy kratšie o 60 %, žiadne zabudnuté tikety.',
-    },
-    {
-      t: 'Schôdze s programom',
-      f: 'Bod po bode, RSVP dopredu, zápisnica v PDF',
-      b: 'Schôdza trvá 45 minút namiesto 2 hodín.',
-    },
-    {
-      t: 'Plán revízií',
-      f: 'Kotol, výťah, bleskozvod — pripomienka 30 dní vopred',
-      b: 'Nikdy viac pokuta za nespravenú revíziu.',
-    },
-    {
-      t: 'Senior režim',
-      f: 'Väčšie písmo, jednoduchšie obrazovky, hlasové čítanie',
-      b: 'Aj babka zo 4. poschodia si zaplatí účet sama.',
-    },
-  ];
+function BeforeAfter() {
+  const c = useMarketingCopy();
   return (
-    <section className="mk-section mk-section-cool" id="funkcie" aria-labelledby="feat-h">
-      <div className="mk-container">
-        <h2 id="feat-h" className="mk-h2">Všetko čo bytový dom potrebuje</h2>
-        <p className="mk-sub">Bez 7 rôznych appiek, bez Google tabuliek, bez štítov na nástenke.</p>
-        <div className="mk-cards">
-          {items.map((f, i) => (
-            <article key={i} className="mk-card">
-              <div className="mk-card-num">{String(i + 1).padStart(2, '0')}</div>
-              <h3 className="mk-card-title">{f.t}</h3>
-              <p className="mk-card-body">{f.f}</p>
-              <p className="mk-card-outcome">
-                → <strong>{f.b}</strong>
+    <Reveal>
+      <section className="mk-section mk-soft mk-ba" id="porovnanie" aria-labelledby="ba-h">
+        <div className="mk-container">
+          <SectionHead
+            kicker={c.beforeAfter.kicker}
+            title={c.beforeAfter.title}
+            subtitle={c.beforeAfter.subtitle}
+          />
+          <div className="ba-table">
+            <div className="ba-thead">
+              <div className="ba-th-area">{c.beforeAfter.headers.area}</div>
+              <div className="ba-th-before">
+                <span className="ba-th-pill ba-th-pill-before">{c.beforeAfter.headers.before}</span>
+              </div>
+              <div className="ba-th-after">
+                <span className="ba-th-pill ba-th-pill-after">{c.beforeAfter.headers.after}</span>
+              </div>
+            </div>
+            {c.beforeAfter.rows.map((r, i) => (
+              <div key={r.area} className="ba-row" style={{ ['--stagger' as any]: `${i * 50}ms` }}>
+                <div className="ba-area">{r.area}</div>
+                <div className="ba-before">
+                  <span className="ba-mark ba-mark-before" aria-hidden="true">✕</span>
+                  <span>{r.before}</span>
+                </div>
+                <div className="ba-after">
+                  <span className="ba-mark ba-mark-after" aria-hidden="true">✓</span>
+                  <span>{r.after}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="ba-summary">
+            {c.beforeAfter.summary.map((s) => (
+              <div key={s.label} className="ba-summary-stat">
+                <div className="ba-stat-num">{s.num}</div>
+                <div className="ba-stat-label">{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    </Reveal>
+  );
+}
+
+/* ============================ Product showcase ============================ */
+
+function ProductShowcase() {
+  const c = useMarketingCopy();
+  return (
+    <Reveal>
+      <section className="mk-section mk-showcase" aria-labelledby="show-h">
+        <div className="mk-container">
+          <SectionHead
+            kicker={c.showcase.kicker}
+            title={c.showcase.title}
+            subtitle={c.showcase.subtitle}
+          />
+
+          {/* Row 1: Chairman dashboard */}
+          <div className="showcase-row">
+            <div className="showcase-text">
+              <div className="showcase-pill">Predseda SVB / BD</div>
+              <h3 className="showcase-h">Všetko na jednom dashboarde</h3>
+              <p className="showcase-body">
+                Urgentné poruchy, otvorené hlasovania, nedoplatky a blížiace sa revízie — všetko uvidíte hneď po prihlásení.
+                Bez preklikávania cez 5 záložiek.
               </p>
-            </article>
-          ))}
+              <ul className="showcase-list">
+                <li>Live KPI: nedoplatky, tikety, revízie</li>
+                <li>Attention cards s akciou (jedno kliknutie = vyriešené)</li>
+                <li>Audit log všetkého, čo sa v dome deje</li>
+              </ul>
+            </div>
+            <MockupChairman />
+          </div>
+
+          {/* Row 2: Resident mobile (reverse) */}
+          <div className="showcase-row showcase-reverse">
+            <div className="showcase-text">
+              <div className="showcase-pill showcase-pill-blue">Vlastník bytu</div>
+              <h3 className="showcase-h">Z mobilu, aj keď ste na dovolenke</h3>
+              <p className="showcase-body">
+                Vlastník vidí iba to, čo ho reálne zaujíma: svoju faktúru s QR platbou, otvorené hlasovanie a nahlásené
+                poruchy. Žiadne tabuľky, žiadne PDF.
+              </p>
+              <ul className="showcase-list">
+                <li>SEPA QR platba — banka predvyplní všetko</li>
+                <li>Hlasovanie jedným ťuknutím</li>
+                <li>Push notifikácia pri novej schôdzi / faktúre</li>
+              </ul>
+            </div>
+            <MockupResident />
+          </div>
+
+          {/* Row 3: Voting */}
+          <div className="showcase-row">
+            <div className="showcase-text">
+              <div className="showcase-pill showcase-pill-orange">Hlasovania</div>
+              <h3 className="showcase-h">Zápisnica s XAdES podpisom za 3 dni</h3>
+              <p className="showcase-body">
+                Predseda otvorí hlasovanie, vlastníci hlasujú z mobilu, po uzávierke sa automaticky vygeneruje zápisnica
+                vo formáte PDF s detached XAdES-BES podpisom. Žiaden notár, žiadne prepisovanie.
+              </p>
+              <ul className="showcase-list">
+                <li>Quorum-aware: systém počíta podiely automaticky</li>
+                <li>Listinný hlas má prednosť — anti-duplicity</li>
+                <li>Audit hash-chain (SHA-256) neprepíšete</li>
+              </ul>
+            </div>
+            <MockupVoting />
+          </div>
+        </div>
+      </section>
+    </Reveal>
+  );
+}
+
+function MockupChairman() {
+  return (
+    <RealMockup
+      src="/screenshots/chairman-dashboard.png"
+      alt="DomovPlus chairman dashboard — KPI tiles, urgent ticket, otvorené hlasovanie"
+    />
+  );
+}
+
+function MockupResident() {
+  return (
+    <div className="mockup mockup-phone-lg">
+      <div className="phone-lg-frame">
+        <div className="phone-lg-notch" />
+        <div className="phone-lg-screen-img">
+          <img src="/screenshots/mobile-home.png" alt="DomovPlus resident view — faktúra QR, hlasovanie z mobilu" />
         </div>
       </div>
-    </section>
+    </div>
+  );
+}
+
+function MockupVoting() {
+  return (
+    <RealMockup
+      src="/screenshots/chairman-voting.png"
+      alt="DomovPlus voting screen — quorum tracker, vote counts, status"
+    />
+  );
+}
+
+/* Generický wrapper pre reálny screenshot — browser frame okolo PNG-čka */
+function RealMockup({ src, alt }: { src: string; alt: string }) {
+  return (
+    <div className="mockup mockup-desktop mockup-real">
+      <div className="mockup-bar">
+        <span className="mockup-dot" style={{ background: '#fc6058' }} />
+        <span className="mockup-dot" style={{ background: '#fed84b' }} />
+        <span className="mockup-dot" style={{ background: '#36cd4d' }} />
+        <span className="mockup-url">domovplus.sk</span>
+      </div>
+      <div className="mockup-real-img">
+        <img src={src} alt={alt} loading="lazy" />
+      </div>
+    </div>
   );
 }
 
 /* ============================ How it works ============================ */
 
 function HowItWorks() {
-  const steps = [
-    { t: 'Zaregistrujete sa', b: '2 minúty, bez kreditnej karty. Ako predseda SVB alebo správca.' },
-    { t: 'Nahráte byty z Excelu', b: 'Systém vygeneruje aktivačné kódy pre vlastníkov.' },
-    { t: 'Vlastníci sa pripoja', b: 'V priemere 80 % do týždňa. Pošlete im PDF/SMS/e-mail.' },
-    { t: 'Riadite dom odkiaľkoľvek', b: 'Z mobilu, z práce, na dovolenke. Jedno miesto na všetko.' },
-  ];
+  const c = useMarketingCopy();
   return (
-    <section className="mk-section" id="how" aria-labelledby="how-h">
-      <div className="mk-container">
-        <h2 id="how-h" className="mk-h2">Od registrácie po fungujúci dom za 30 minút</h2>
-        <p className="mk-sub">Žiadne demo hovory, žiadna implementácia. Začnete hneď.</p>
-        <ol className="mk-steps">
-          {steps.map((s, i) => (
-            <li key={i} className="mk-step">
-              <div className="mk-step-n">{i + 1}</div>
-              <div>
-                <h3 className="mk-step-t">{s.t}</h3>
-                <p className="mk-step-b">{s.b}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
-      </div>
-    </section>
+    <Reveal>
+      <section className="mk-section" id="how" aria-labelledby="how-h">
+        <div className="mk-container">
+          <SectionHead
+            kicker={c.how.kicker}
+            title={c.how.title}
+            subtitle={c.how.subtitle}
+          />
+          <ol className="steps">
+            {c.how.steps.map((s, i) => (
+              <li key={s.n} className="step" style={{ ['--stagger' as any]: `${i * 120}ms` }}>
+                <div className="step-n">{s.n}</div>
+                <div>
+                  <h3 className="step-t">{s.t}</h3>
+                  <p className="step-b">{s.b}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+    </Reveal>
   );
 }
 
-/* ================================ Pricing ================================ */
+/* =============================== Pricing =============================== */
 
 function Pricing() {
+  const c = useMarketingCopy();
   return (
-    <section className="mk-section mk-section-warm" id="cennik" aria-labelledby="price-h">
-      <div className="mk-container">
-        <h2 id="price-h" className="mk-h2">Jednoduchá cena</h2>
-        <p className="mk-sub">
-          Bez skrytých poplatkov. Platí sa zo spoločného účtu SVB, nie z peňazí predsedu.
-        </p>
-        <div className="mk-price-grid">
-          <PriceCard
-            tag="Štart"
-            price="0 €"
-            unit="30 dní zdarma"
-            desc="Pre vyskúšanie bez záväzku."
-            features={['Plná funkcionalita', 'Bez kreditnej karty', 'Do 1 budovy']}
-            cta={{ label: 'Vyskúšať', to: '/registracia' }}
+    <Reveal>
+      <section className="mk-section mk-soft" id="cennik" aria-labelledby="price-h">
+        <div className="mk-container">
+          <SectionHead
+            kicker={c.pricing.kicker}
+            title={c.pricing.title}
+            subtitle={c.pricing.subtitle}
           />
-          <PriceCard
-            highlight
-            tag="Štandard"
-            price="0,90 €"
-            unit="/ byt / mesiac"
-            desc="Pre SVB a BD. Najčastejšia voľba."
-            features={[
-              'Plná funkcionalita',
-              'XAdES podpis zápisníc',
-              'SEPA QR + bank CSV import',
-              'Pripomienky revízií',
-              'Support do 24 h',
-            ]}
-            cta={{ label: 'Vybrať', to: '/registracia' }}
-          />
-          <PriceCard
-            tag="Profesionál"
-            price="Na mieru"
-            unit=""
-            desc="Pre správcovské firmy s 5+ budovami."
-            features={['Dedikovaný server', 'SLA podľa zmluvy', 'Účtovné exporty (Pohoda, Money)', 'Prenos dát zdarma']}
-            cta={{ label: 'Konzultácia', to: '/registracia' }}
-          />
+          <div className="price-grid">
+            {c.pricing.plans.map((p, i) => (
+              <PriceCard
+                key={p.tag}
+                tag={p.tag}
+                price={p.price}
+                unit={p.unit}
+                desc={p.desc}
+                bullets={p.bullets}
+                cta={p.cta}
+                to={i === 2 ? '/#pilot' : '/registracia'}
+                highlight={i === 1}
+                stagger={i * 120}
+              />
+            ))}
+          </div>
+          <p className="inline-meta" style={{ textAlign: 'center', marginTop: '1.5rem' }}>
+            {c.pricing.note}
+          </p>
+
+          <PriceCalculatorToggle />
         </div>
-        <p className="mk-small" style={{ textAlign: 'center', marginTop: 24 }}>
-          Ceny bez DPH. Prvé 3 budovy pre správcovské firmy získavajú prenos dát zdarma.
-        </p>
-      </div>
-    </section>
+      </section>
+    </Reveal>
   );
 }
 
-function PriceCard({
-  tag,
-  price,
-  unit,
-  desc,
-  features,
-  cta,
-  highlight,
-}: {
-  tag: string;
-  price: string;
-  unit: string;
-  desc: string;
-  features: string[];
-  cta: { label: string; to: string };
-  highlight?: boolean;
-}) {
+function PriceCalculatorToggle() {
+  const c = useMarketingCopy();
+  const [open, setOpen] = useState(false);
   return (
-    <div className={`mk-price-card ${highlight ? 'mk-price-card-highlight' : ''}`}>
-      {highlight && <div className="mk-price-ribbon">Najobľúbenejšie</div>}
-      <div className="mk-price-tag">{tag}</div>
-      <div className="mk-price">
-        {price} <span className="mk-price-unit">{unit}</span>
-      </div>
-      <p className="mk-price-desc">{desc}</p>
-      <ul className="mk-price-list">
-        {features.map((f) => <li key={f}>{f}</li>)}
-      </ul>
-      <Link to={cta.to} className={`mk-btn ${highlight ? 'mk-btn-primary' : 'mk-btn-secondary'} mk-btn-block`}>
-        {cta.label}
-      </Link>
+    <div className="price-calc-toggle-wrap">
+      {!open ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="price-calc-trigger"
+          aria-expanded="false"
+          aria-controls="price-calc-panel"
+        >
+          <span className="price-calc-trigger-ic">🧮</span>
+          <span>
+            <strong>{c.pricing.calc.trigger}</strong>
+            <span className="price-calc-trigger-sub">{c.pricing.calc.triggerSub}</span>
+          </span>
+          <span className="price-calc-trigger-arrow">↓</span>
+        </button>
+      ) : (
+        <div id="price-calc-panel">
+          <PriceCalculator />
+          <div className="price-calc-close-wrap">
+            <button type="button" className="price-calc-close" onClick={() => setOpen(false)}>
+              {c.pricing.calc.close}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-/* ============================ Testimonials ============================ */
+function PriceCalculator() {
+  const c = useMarketingCopy();
+  const [units, setUnits] = useState<number>(24);
+  const PRICE_PER_UNIT = 2.49;
+  const monthly = units * PRICE_PER_UNIT;
+  const yearly = monthly * 12;
+  const perUnitYearly = PRICE_PER_UNIT * 12;
+  const dailyPerUnit = perUnitYearly / 365;
+  const perUnitMonthly = yearly / units / 12;
 
-function Testimonials() {
-  const items = [
-    {
-      name: 'Jana Predsedová',
-      role: 'Predseda SVB, Bratislava',
-      body:
-        'Pred DomovPlus som platila hodiny pri stole s papiermi. Teraz kliknem a mám zápisnicu podpísanú digitálne. Banku pri úvere to nezastavilo.',
-    },
-    {
-      name: 'Peter Vlastník',
-      role: 'Vlastník bytu, Košice',
-      body:
-        'Babka zo štvrtého poschodia si zaplatila faktúru sama cez QR. To je pre mňa najlepší dôkaz, že to je jednoduché.',
-    },
-    {
-      name: 'Marek Správca',
-      role: 'Správca 8 budov, Trnava',
-      body:
-        'Bankový import CSV súborov ušetrí môjmu tímu 3 dni mesačne. A keď vlastník zaplatí, príde mu automatické potvrdenie.',
-    },
-  ];
   return (
-    <section className="mk-section" aria-labelledby="tst-h">
-      <div className="mk-container">
-        <h2 id="tst-h" className="mk-h2">Čo hovoria ľudia, ktorí to už používajú</h2>
-        <p className="mk-sub">Časť citátov je z pilotnej fázy. Budete tu ďalší?</p>
-        <div className="mk-tst-grid">
-          {items.map((t) => (
-            <figure key={t.name} className="mk-tst">
-              <blockquote>„{t.body}"</blockquote>
-              <figcaption>
-                <strong>{t.name}</strong>
-                <span>{t.role}</span>
-              </figcaption>
-            </figure>
-          ))}
+    <div className="price-calc">
+      <div className="price-calc-head">
+        <div className="price-calc-pill">{c.pricing.calc.pill}</div>
+        <h3 className="price-calc-h">{c.pricing.calc.h}</h3>
+        <p className="price-calc-sub">{c.pricing.calc.sub}</p>
+      </div>
+
+      <div className="price-calc-slider-row">
+        <div className="price-calc-slider-label">
+          <span>{c.pricing.calc.units}</span>
+          <strong>{units}</strong>
+        </div>
+        <input
+          type="range"
+          min={6}
+          max={200}
+          step={1}
+          value={units}
+          onChange={(e) => setUnits(Number(e.target.value))}
+          className="price-calc-slider"
+          style={{ ['--p' as any]: `${((units - 6) / (200 - 6)) * 100}%` }}
+          aria-label={c.pricing.calc.units}
+        />
+        <div className="price-calc-slider-marks">
+          <span>6</span><span>50</span><span>100</span><span>150</span><span>200</span>
         </div>
       </div>
-    </section>
+
+      <div className="price-calc-result">
+        <div className="price-calc-cell">
+          <div className="price-calc-cell-label">{c.pricing.calc.monthly}</div>
+          <div className="price-calc-cell-val">{monthly.toFixed(2)} €</div>
+          <div className="price-calc-cell-meta">{units} × 2,49 €</div>
+        </div>
+        <div className="price-calc-cell price-calc-cell-hl">
+          <div className="price-calc-cell-label">{c.pricing.calc.yearly}</div>
+          <div className="price-calc-cell-val">{yearly.toFixed(0)} €</div>
+          <div className="price-calc-cell-meta">{(yearly / 12).toFixed(2)} € / {c.pricing.calc.monthly.toLowerCase()}</div>
+        </div>
+        <div className="price-calc-cell">
+          <div className="price-calc-cell-label">{c.pricing.calc.perUnit}</div>
+          <div className="price-calc-cell-val">{perUnitYearly.toFixed(2)} €</div>
+          <div className="price-calc-cell-meta">{dailyPerUnit.toFixed(2)} € / d</div>
+        </div>
+      </div>
+
+      <div
+        className="price-calc-context"
+        dangerouslySetInnerHTML={{ __html: c.pricing.calc.contextHtml(units, yearly, perUnitMonthly) }}
+      />
+
+      <div className="price-calc-cta">
+        <Link to="/registracia" className="mk-btn mk-btn-primary">
+          {c.pricing.calc.ctaFree}
+        </Link>
+        <a href="#demo-call" className="mk-btn mk-btn-secondary">
+          {c.pricing.calc.ctaCall}
+        </a>
+      </div>
+    </div>
   );
 }
 
-/* =================================== FAQ =================================== */
+function PriceCard({ tag, price, unit, desc, bullets, cta, to, highlight, stagger = 0 }: {
+  tag: string; price: string; unit: string; desc: string; bullets: string[];
+  cta: string; to: string; highlight?: boolean; stagger?: number;
+}) {
+  return (
+    <div className={`price-card ${highlight ? 'price-hl' : ''}`} style={{ ['--stagger' as any]: `${stagger}ms` }}>
+      {highlight && <div className="price-ribbon">Najobľúbenejšie</div>}
+      <div className="price-tag">{tag}</div>
+      <div className="price-value"><strong>{price}</strong>{unit && <span> {unit}</span>}</div>
+      <p className="price-desc">{desc}</p>
+      <ul className="price-bullets">
+        {bullets.map((b) => <li key={b}>{b}</li>)}
+      </ul>
+      {to.startsWith('/#') ? (
+        <a href={to.slice(1)} className={`mk-btn ${highlight ? 'mk-btn-primary' : 'mk-btn-secondary'} mk-btn-block`}>{cta}</a>
+      ) : (
+        <Link to={to} className={`mk-btn ${highlight ? 'mk-btn-primary' : 'mk-btn-secondary'} mk-btn-block`}>{cta}</Link>
+      )}
+    </div>
+  );
+}
+
+/* ================================ Quote ================================ */
+
+function Quote() {
+  const c = useMarketingCopy();
+  return (
+    <Reveal>
+      <section className="mk-section">
+        <div className="mk-container">
+          <figure className="big-quote">
+            <div className="big-quote-mark" aria-hidden="true">„</div>
+            <blockquote>{c.quote.blockquote}</blockquote>
+            <figcaption>
+              <strong>{c.quote.name}</strong>
+              <span>{c.quote.sub}</span>
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+    </Reveal>
+  );
+}
+
+/* ================================= FAQ ================================= */
 
 function FAQ() {
-  const faqs = [
-    {
-      q: 'Je zápisnica z hlasovania akceptovaná bankou pri úvere na zateplenie?',
-      a: 'Zápisnica je exportovaná ako PDF a podpísaná detachovaným XAdES-BES podpisom. Pre úvery zo ŠFRB a hypotekárne banky odporúčame použiť kvalifikovaný certifikát od NASES (SR) alebo PostSignum/Disig (CZ). Podpisovací kľúč nastavíte cez env, kód sa nemení.',
-    },
-    {
-      q: 'Kto vidí moje dáta?',
-      a: 'Iba vy. Dáta bežia na vašom serveri — neposielame ich do USA a nechodia cez tretie strany. Podľa GDPR čl. 20 si ich stiahnete v JSON, podľa čl. 17 vymažete.',
-    },
-    {
-      q: 'Funguje to pre starších vlastníkov?',
-      a: 'Áno — appka má Senior režim (20 px písmo, 56 px tlačidlá, vyšší kontrast, hlasové čítanie). Spĺňa WCAG 2.1 AA. Pre tých, čo nechcú appku, môže správca zadávať listinné hlasy za nich — systém to eviduje oddelene.',
-    },
-    {
-      q: 'Čo ak stratím telefón s 2FA?',
-      a: 'Pri zapnutí dvojfaktoru si vygenerujete 10 jednorazových záložných kódov. Stačí uložiť do papierového zoznamu alebo správcu hesiel.',
-    },
-    {
-      q: 'Koľko stojí prenos dát zo súčasného systému?',
-      a: 'Pre prvé 3 budovy zdarma, robíme to za vás. Potrebujeme iba export v Excel alebo CSV.',
-    },
-    {
-      q: 'Ako si otestujem ešte pred pilotom?',
-      a: 'Zaregistrujete sa na 30 dní zadarmo, bez kreditnej karty. Dostanete plnú funkcionalitu a môžete kedykoľvek skončiť.',
-    },
-  ];
+  const c = useMarketingCopy();
+  const items = c.faq.items;
+  const [showAll, setShowAll] = useState(false);
+  const visible = showAll ? items : items.slice(0, 4);
+  const hiddenCount = items.length - 4;
+
   return (
-    <section className="mk-section mk-section-cool" id="faq" aria-labelledby="faq-h">
-      <div className="mk-container" style={{ maxWidth: 760 }}>
-        <h2 id="faq-h" className="mk-h2">Časté otázky</h2>
-        <div className="mk-faq">
-          {faqs.map((f) => (
-            <details key={f.q} className="mk-faq-item">
-              <summary>{f.q}</summary>
-              <p>{f.a}</p>
-            </details>
-          ))}
+    <Reveal>
+      <section className="mk-section mk-soft" id="faq" aria-labelledby="faq-h">
+        <div className="mk-container">
+          <SectionHead
+            kicker={c.faq.kicker}
+            title={c.faq.title}
+            subtitle={c.faq.subtitle}
+          />
+          <div className="faq-list">
+            {visible.map((it, i) => (
+              <details key={i} className="faq-item" open={i === 0 && !showAll}>
+                <summary className="faq-q">
+                  <span>{it.q}</span>
+                  <span className="faq-chev" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                  </span>
+                </summary>
+                <div className="faq-a">{it.a}</div>
+              </details>
+            ))}
+          </div>
+          {!showAll && hiddenCount > 0 && (
+            <div className="faq-more-wrap">
+              <button type="button" className="faq-more-btn" onClick={() => setShowAll(true)}>
+                {c.faq.showMore(hiddenCount)}
+              </button>
+            </div>
+          )}
         </div>
-      </div>
-    </section>
+      </section>
+    </Reveal>
   );
 }
 
-/* ================================ Final CTA ================================ */
+/* ============================ Lead magnet ============================ */
+
+function LeadMagnet() {
+  const c = useMarketingCopy();
+  const [email, setEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      // Pošleme do /leads ako "downloaded checklist" lead — capture email pre nurturing
+      await api('/leads', {
+        method: 'POST',
+        body: JSON.stringify({ email, source: 'checklist-download' }),
+      }).catch(() => null); // aj keď fail, dovolíme stiahnuť — lead capture je nice-to-have
+      setDone(true);
+      // Trigger download
+      const link = document.createElement('a');
+      link.href = '/checklist-prvej-elektronickej-schodze.pdf';
+      link.download = 'DomovPlus-checklist-prvej-elektronickej-schodze.pdf';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Reveal>
+      <section className="mk-section mk-leadmagnet" id="checklist" aria-labelledby="lm-h">
+        <div className="mk-container">
+          <div className="lm-card">
+            <div className="lm-left">
+              <div className="lm-pill">{c.leadMagnet.pill}</div>
+              <h2 id="lm-h" className="lm-h">
+                {c.leadMagnet.h1}<br />{c.leadMagnet.h2}
+              </h2>
+              <p className="lm-body" dangerouslySetInnerHTML={{ __html: c.leadMagnet.body.replace(/§([\w\d. ]+)/g, '<strong>§$1</strong>') }} />
+              <ul className="lm-list">
+                {c.leadMagnet.bullets.map((b) => <li key={b}>{b}</li>)}
+              </ul>
+
+              {!done ? (
+                <form onSubmit={submit} className="lm-form">
+                  <input
+                    type="email"
+                    required
+                    placeholder={c.leadMagnet.placeholder}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    aria-label="Email"
+                  />
+                  <button type="submit" disabled={busy} className="mk-btn mk-btn-primary">
+                    {busy ? c.leadMagnet.submitting : c.leadMagnet.submit}
+                  </button>
+                </form>
+              ) : (
+                <div className="lm-thanks">
+                  <div className="lm-check" aria-hidden="true">✓</div>
+                  <div>
+                    <strong>{c.leadMagnet.thanksTitle}</strong>
+                    <div>{c.leadMagnet.thanksBody}<a href="/checklist-prvej-elektronickej-schodze.pdf" download>{c.leadMagnet.thanksLink}</a>.</div>
+                  </div>
+                </div>
+              )}
+              {err && <p className="mk-err">{err}</p>}
+              <p className="lm-trust">{c.leadMagnet.trust}</p>
+            </div>
+            <div className="lm-right">
+              <div className="lm-pdf-preview">
+                <div className="lm-pdf-band">{c.leadMagnet.pdfBand}</div>
+                <div className="lm-pdf-title">{c.leadMagnet.pdfTitle}</div>
+                <div className="lm-pdf-pages">{c.leadMagnet.pdfPages}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </Reveal>
+  );
+}
+
+/* ============================ Demo call CTA ============================ */
+
+function DemoCall() {
+  const c = useMarketingCopy();
+  return (
+    <Reveal>
+      <section className="mk-section mk-democall" id="demo-call" aria-labelledby="demo-h">
+        <div className="mk-container">
+          <div className="democall-card">
+            <div className="democall-left">
+              <div className="democall-badge">{c.demoCall.badge}</div>
+              <h2 id="demo-h" className="democall-h">{c.demoCall.h}</h2>
+              <p className="democall-body">{c.demoCall.body}</p>
+              <ul className="democall-list">
+                {c.demoCall.bullets.map((b) => <li key={b}>{b}</li>)}
+              </ul>
+            </div>
+            <div className="democall-right">
+              <a href="mailto:hello@domovplus.sk?subject=Demo DomovPlus" className="mk-btn mk-btn-primary democall-btn">
+                📧 hello@domovplus.sk
+              </a>
+              <a href="tel:+421911000000" className="mk-btn mk-btn-secondary democall-btn">
+                📞 +421 911 000 000
+              </a>
+              <div className="democall-hours" style={{ whiteSpace: 'pre-line' }}>
+                {c.demoCall.hours}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </Reveal>
+  );
+}
+
+/* ============================= Final CTA ============================= */
 
 function FinalCTA() {
+  const c = useMarketingCopy();
   const [email, setEmail] = useState('');
   const [city, setCity] = useState('');
   const [units, setUnits] = useState('');
@@ -488,7 +751,7 @@ function FinalCTA() {
       });
       setSent(true);
     } catch {
-      setErr('Odoslanie zlyhalo. Skúste znova alebo napíšte na hello@domovplus.sk.');
+      setErr('Odoslanie zlyhalo. Napíšte priamo na hello@domovplus.sk.');
     } finally {
       setBusy(false);
     }
@@ -497,72 +760,147 @@ function FinalCTA() {
   return (
     <section className="mk-final" id="pilot" aria-labelledby="final-h">
       <div className="mk-container">
-        <h2 id="final-h" className="mk-final-h">Začnite do 10 minút. Skončite, keď budete chcieť.</h2>
-        <p className="mk-final-sub">14-denná záruka vrátenia peňazí · bez kreditnej karty · slovenský support.</p>
+        <h2 id="final-h" className="mk-final-h">
+          {c.finalCta.h1}<span className="mk-accent">{c.finalCta.h2}</span>
+        </h2>
+        <p className="mk-final-sub">{c.finalCta.sub}</p>
         {sent ? (
           <div className="mk-final-thanks">
             <div className="mk-thanks-icon" aria-hidden="true">✓</div>
-            <h3>Ďakujeme!</h3>
-            <p>Ozveme sa vám do 24 hodín na <strong>{email}</strong>.</p>
+            <h3>{c.finalCta.thanksTitle}</h3>
+            <p>{c.finalCta.thanksBody(email)}</p>
           </div>
         ) : (
           <form onSubmit={submit} className="mk-final-form">
-            <input
-              type="email"
-              required
-              placeholder="predseda@vasa-svb.sk"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              aria-label="Email"
-            />
-            <input
-              placeholder="Mesto"
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              aria-label="Mesto"
-            />
-            <input
-              type="number"
-              min={1}
-              placeholder="Počet bytov"
-              value={units}
-              onChange={(e) => setUnits(e.target.value)}
-              aria-label="Počet bytov"
-            />
+            <input type="email" required placeholder={c.finalCta.placeholderEmail} value={email} onChange={(e) => setEmail(e.target.value)} aria-label="Email" />
+            <input placeholder={c.finalCta.placeholderCity} value={city} onChange={(e) => setCity(e.target.value)} aria-label={c.finalCta.placeholderCity} />
+            <input type="number" min={1} placeholder={c.finalCta.placeholderUnits} value={units} onChange={(e) => setUnits(e.target.value)} aria-label={c.finalCta.placeholderUnits} />
             <button type="submit" className="mk-btn mk-btn-primary" disabled={busy}>
-              {busy ? 'Odosielam…' : 'Začať zadarmo →'}
+              {busy ? c.finalCta.submitting : c.finalCta.submit}
             </button>
           </form>
         )}
         {err && <p className="mk-err" style={{ textAlign: 'center' }}>{err}</p>}
         <p className="mk-final-alt">
-          Alebo <Link to="/registracia">vytvorte účet priamo</Link> a začnite hneď.
+          {c.finalCta.alt}<Link to="/registracia">{c.finalCta.altLink}</Link>.
         </p>
       </div>
     </section>
   );
 }
 
-/* ================================== Footer ================================== */
+/* ================================ Footer ================================ */
 
 function Footer() {
+  const c = useMarketingCopy();
   return (
     <footer className="mk-footer">
-      <div className="mk-container mk-footer-inner">
-        <div>
-          <strong>DomovPlus</strong>
-          <p className="mk-small">Operačný systém pre bytový dom · SR / ČR</p>
+      <div className="mk-container">
+        <div className="mk-footer-top">
+          <div className="mk-footer-brand">
+            <div className="mk-footer-logo">
+              <span className="mk-footer-mark" aria-hidden="true">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <strong>DomovPlus</strong>
+            </div>
+            <p className="mk-footer-tagline" style={{ whiteSpace: 'pre-line' }}>{c.footer.tagline}</p>
+            <div className="mk-footer-badges">
+              {c.footer.badges.map((b) => (
+                <span key={b} className="mk-footer-badge">{b}</span>
+              ))}
+            </div>
+          </div>
+
+          <div className="mk-footer-cols">
+            {c.footer.cols.map((col) => (
+              <div key={col.title} className="mk-footer-col">
+                <div className="mk-footer-h">{col.title}</div>
+                {col.links.map((l) =>
+                  l.href.startsWith('#') || l.href.startsWith('mailto:') || l.href.startsWith('tel:')
+                    ? <a key={l.label} href={l.href}>{l.label}</a>
+                    : <Link key={l.label} to={l.href}>{l.label}</Link>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
-        <nav className="mk-footer-nav" aria-label="Päta">
-          <a href="#funkcie">Funkcie</a>
-          <a href="#how">Ako to funguje</a>
-          <a href="#cennik">Cenník</a>
-          <a href="#faq">FAQ</a>
-          <Link to="/prihlasenie">Prihlásenie</Link>
-          <a href="mailto:hello@domovplus.sk">Kontakt</a>
-        </nav>
-        <div className="mk-small">© 2026 DomovPlus · VOP · GDPR</div>
+
+        <div className="mk-footer-bottom">
+          <div className="mk-footer-legal">
+            {c.footer.legal} · <Link to="/obchodne-podmienky">{c.footer.legalLinks.terms}</Link> · <Link to="/ochrana-udajov">{c.footer.legalLinks.privacy}</Link> · <Link to="/spracovanie-udajov">{c.footer.legalLinks.dpa}</Link>
+          </div>
+          <div className="mk-footer-made">
+            <Link to="/status">● Status</Link> · <Link to="/changelog">Changelog</Link> · v0.1.0
+          </div>
+        </div>
       </div>
     </footer>
   );
 }
+
+/* ============================= Helpers ============================= */
+
+function SectionHead({ kicker, title, subtitle }: { kicker?: string; title: string; subtitle?: string }) {
+  return (
+    <header className="section-head">
+      {kicker && <div className="section-kicker">{kicker}</div>}
+      <h2 className="section-title">{title}</h2>
+      {subtitle && <p className="section-sub">{subtitle}</p>}
+    </header>
+  );
+}
+
+// Counter pre stagger — každý Reveal na stránke dostane rastúci delay,
+// aby fade-in bolo vidno aj keď je na veľkom monitore viacero sekcií vo
+// viewport-e naraz pri mount-e.
+let revealCounter = 0;
+function Reveal({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  const delayRef = useRef<number>(0);
+  if (delayRef.current === 0) {
+    revealCounter += 1;
+    delayRef.current = revealCounter;
+  }
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          // stagger: čím ďalej je sekcia od top-u, tým dlhší delay (max 600ms)
+          const baseDelay = Math.min((delayRef.current - 1) * 120, 600);
+          setTimeout(() => setVisible(true), baseDelay);
+          io.disconnect();
+        }
+      },
+      { threshold: 0.05, rootMargin: '0px 0px -10% 0px' },
+    );
+    io.observe(el);
+    // Reset counter po poslednom Reveal-e — pri HMR sa inak stackuje
+    return () => {
+      io.disconnect();
+      if (delayRef.current === revealCounter) revealCounter = 0;
+    };
+  }, []);
+  return <div ref={ref} className={`reveal ${visible ? 'reveal-in' : ''}`}>{children}</div>;
+}
+
+/* ============================== Icons ============================== */
+
+const iconProps = {
+  width: 24, height: 24, viewBox: '0 0 24 24', fill: 'none',
+  stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const,
+};
+function IcoVote() { return (<svg {...iconProps}><path d="m9 12 2 2 4-4" /><path d="M5 7h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z" /><path d="M16 3v4M8 3v4" /></svg>); }
+function IcoMoney() { return (<svg {...iconProps}><rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /></svg>); }
+function IcoWrench() { return (<svg {...iconProps}><path d="M14.7 6.3a4 4 0 0 0-5.3 5.3L3 18l3 3 6.4-6.4a4 4 0 0 0 5.3-5.3l-2.3 2.3-2-2z" /></svg>); }
+function IcoCalendar() { return (<svg {...iconProps}><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>); }
+function IcoTool() { return (<svg {...iconProps}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6M9 13l2 2 4-4" /></svg>); }
+function IcoShield() { return (<svg {...iconProps}><path d="M12 2 4 5v6c0 5 3.5 9.5 8 11 4.5-1.5 8-6 8-11V5z" /><path d="m9 12 2 2 4-4" /></svg>); }
+function IcoMegaphone() { return (<svg {...iconProps}><path d="M3 11v2a2 2 0 0 0 2 2h1l3 4V7L6 11H5a2 2 0 0 0-2 0z" /><path d="M14 7a6 6 0 0 1 0 10M18 4a10 10 0 0 1 0 16" /></svg>); }
+function IcoEnergy() { return (<svg {...iconProps}><path d="M13 2 3 14h7l-1 8 10-12h-7z" /></svg>); }
+function IcoBazaar() { return (<svg {...iconProps}><path d="M3 9h18l-1.5 9a2 2 0 0 1-2 1.8H6.5a2 2 0 0 1-2-1.8L3 9z" /><path d="M8 9V6a4 4 0 0 1 8 0v3" /></svg>); }
