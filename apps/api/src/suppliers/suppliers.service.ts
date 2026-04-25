@@ -8,7 +8,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
-interface AuthedUser { sub: string; }
+interface AuthedUser { id: string; }
 
 @Injectable()
 export class SuppliersService {
@@ -69,7 +69,7 @@ export class SuppliersService {
   private async assertBuildingAccess(user: AuthedUser, buildingId: string) {
     const m = await this.prisma.membership.findFirst({
       where: {
-        userId: user.sub,
+        userId: user.id,
         buildingId,
         role: { in: ['CHAIRMAN', 'MANAGER', 'ADMIN'] },
       },

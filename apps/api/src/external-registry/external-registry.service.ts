@@ -82,9 +82,9 @@ export class ExternalRegistryService {
   }
 
   // ─────────────────────────────────────────────────────────
-  // SK — Finstat.sk scraping (RPO API nemá verejný endpoint).
-  // Stránka https://www.finstat.sk/{ICO} obsahuje stabilné HTML
-  // s <title>, <meta>, JSON-LD a tabuľkou s DIČ, IČ DPH, adresou.
+  // SK — Finstat.sk scraping. Stránka má stabilný formát:
+  //   <li class="inline"><strong>IČO</strong> <span>56908377</span></li>
+  //   <li><strong>Sídlo</strong> <span>NAME<br/>STREET PSČ MESTO</span></li>
   // ─────────────────────────────────────────────────────────
   private async lookupRpo(ico: string): Promise<RegistryLookupResult> {
     const url = `https://www.finstat.sk/${ico}`;
@@ -102,30 +102,51 @@ export class ExternalRegistryService {
       return { found: false, source: 'NONE' };
     }
 
-    // 1) Názov firmy z <title>
-    const titleMatch = html.match(/<title>([^<]+?)\s*-\s*(?:historický[^<]*-\s*)?(?:zisk|trž|hospod)/i)
-      ?? html.match(/<title>([^<]+?)<\/title>/i);
-    const name = titleMatch ? this.decodeHtml(titleMatch[1]).trim() : undefined;
+    // Helper na vytiahnutie hodnoty z <li><strong>LABEL</strong> <span>HODNOTA</span>...
+    const extractField = (label: string): string | undefined => {
+      const re = new RegExp(`<strong>${label}<\\/strong>\\s*<span[^>]*>([\\s\\S]*?)<\\/span>`, 'i');
+      const m = html.match(re);
+      if (!m) return undefined;
+      // Nahraď <br/> medzerami, strip ostatné HTML tagy
+      return this.decodeHtml(m[1])
+        .replace(/<br\s*\/?>/gi, ', ')
+        .replace(/<[^>]+>/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    };
 
-    // 2) DIČ — hľadá "DIČ:" alebo "DIČ </td><td>2023456789</td>"
-    const dicMatch = html.match(/D[IČ]Č[^\d]{0,40}(\d{10})/i);
-    const dic = dicMatch?.[1];
+    // Názov firmy — z <title> bez sufixu „- zisk, tržby, ...", alebo z prvého <h1>
+    let name: string | undefined;
+    const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+    if (h1Match) name = this.decodeHtml(h1Match[1]).trim();
+    if (!name) {
+      const titleMatch = html.match(/<title>([^<]+?)\s*-\s*(?:historick[ýy][^<]*-\s*)?(?:zisk|tr[žz]|hospod)/i);
+      if (titleMatch) name = this.decodeHtml(titleMatch[1]).trim();
+    }
 
-    // 3) IČ DPH — "IČ DPH" / "VAT" + SK + 10 čísiel
-    const vatMatch = html.match(/I[ČC]\s*DPH[^A-Z]{0,40}(SK\d{10})/i);
-    const vatId = vatMatch?.[1];
+    const dic = extractField('DIČ');
+    const vatRaw = extractField('IČ DPH');
+    // IČ DPH môže obsahovať "SKxxxxxxxxxx, podľa §7a..." — vytiahni len SK + 10 číslic
+    const vatId = vatRaw?.match(/SK\d{10}/)?.[0];
 
-    // 4) Adresa — title="Adresa: ..." alebo <div class="address">
-    const addrMatch = html.match(/[Aa]dresa[^<]{0,5}<\/td>\s*<td[^>]*>([^<]+)/)
-      ?? html.match(/itemprop=["']address["'][^>]*>([^<]+)</);
-    const address = addrMatch ? this.decodeHtml(addrMatch[1]).replace(/\s+/g, ' ').trim() : undefined;
+    // Sídlo má formát "ALAN RAMPÁČEK s. r. o., Námestie Martina Benku 6302/10 811 07 Bratislava..."
+    // Adresa je za prvou čiarkou (lebo prvá časť je názov firmy)
+    const sidlo = extractField('Sídlo');
+    let address: string | undefined;
+    if (sidlo) {
+      const idx = sidlo.indexOf(',');
+      address = idx >= 0 ? sidlo.slice(idx + 1).trim() : sidlo.trim();
+    }
 
-    // 5) Právna forma — "Právna forma" + ďalší text
-    const lfMatch = html.match(/Pr[áa]vna\s+forma[^<]*<\/td>\s*<td[^>]*>([^<]+)/);
-    const legalForm = lfMatch ? this.decodeHtml(lfMatch[1]).trim() : undefined;
+    // Právna forma — niekedy je v li "Právna forma" alebo extrahuj z mena (s. r. o., a. s.)
+    let legalForm = extractField('Právna forma');
+    if (!legalForm && name) {
+      const lfFromName = name.match(/\b(s\.\s*r\.\s*o\.|a\.\s*s\.|spol\.\s*s\.?\s*r\.\s*o\.|SVB|BD|SVJ|k\.\s*s\.|v\.\s*o\.\s*s\.)/i);
+      legalForm = lfFromName?.[0];
+    }
 
-    // 6) Status / aktívnosť
-    const inactive = /(zrušen|zanikl|likvid)/i.test(html.slice(0, 5000));
+    // Status / aktívnosť — pozri či je v hornej časti stránky "v likvidácii", "zrušená"
+    const inactive = /(v\s+likvid[áa]cii|zru[šs]en|zanikl|vyma[zý]an[áé])/i.test(html.slice(0, 8000));
 
     if (!name) return { found: false, source: 'NONE' };
 
@@ -139,7 +160,7 @@ export class ExternalRegistryService {
       legalForm,
       address,
       active: !inactive,
-      registry: legalForm ? `${legalForm}` : undefined,
+      registry: legalForm,
     };
   }
 
@@ -154,10 +175,55 @@ export class ExternalRegistryService {
       .replace(/&nbsp;/g, ' ');
   }
 
-  private async searchRpoName(name: string): Promise<RegistryLookupResult[]> {
-    // Finstat search returns HTML — skip pre teraz, vrátime prázdne
-    // Predseda zatiaľ musí zadať IČO. Future: parsovanie /search?term=
-    return [];
+  /**
+   * Search-by-name cez ORSR.sk (Obchodný register SR).
+   * ORSR vracia HTML v kódovaní windows-1250, parse-ujeme zoznam linkov vypis.asp.
+   * Pre každý nájdený subjekt potrebujeme tiež IČO — to je v detail-e (vypis.asp).
+   * Fetch detail-u všetkých výsledkov by bol pomalý, takže vraciame zatiaľ len
+   * mená a vypis ID. Frontend môže ponúknuť „Vyhľadať na ORSR" link.
+   *
+   * Pre presný auto-fill: user musí poskytnúť IČO. Tento search je „discovery".
+   */
+  private async searchRpoName(query: string): Promise<RegistryLookupResult[]> {
+    const url = `https://www.orsr.sk/hladaj_subjekt.asp?OBMENO=${encodeURIComponent(query)}&PF=0&SID=0&S=on&R=on`;
+    try {
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (DomovPlus/1.0)' },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!res.ok) return [];
+      const buf = await res.arrayBuffer();
+      // ORSR vracia windows-1250 — node-fetch dekóduje ako utf-8 a rozbije diakritiku.
+      // TextDecoder s 'windows-1250' funguje v Node 20+
+      const html = new TextDecoder('windows-1250').decode(buf);
+
+      // Pattern: <a href="vypis.asp?ID=21634&amp;SID=2&amp;P=0" class="link" alt="..." title="...">NAZOV</a>
+      // Filter: len výsledky s alt= attribute (tie sú názvy firiem; "Aktuálny"/"Úplný" sú navigačné).
+      const matches = Array.from(html.matchAll(
+        /<a\s+href="vypis\.asp\?ID=(\d+)&amp;SID=\d+&amp;P=0"\s+class\s*=\s*"link"\s+alt="[^"]*"\s+title="[^"]*"[^>]*>([^<]+)<\/a>/gi,
+      ));
+
+      const results: RegistryLookupResult[] = [];
+      const seen = new Set<string>();
+      for (const m of matches) {
+        const name = m[2].trim();
+        if (seen.has(name)) continue;
+        // Skip generic navigačné texty (defenzíva)
+        if (/^(aktu[aá]lny|[uú]pln[yý])$/i.test(name)) continue;
+        seen.add(name);
+        results.push({
+          found: true,
+          source: 'RPO_SK',
+          name,
+          // ORSR vypis.asp?ID je interný ORSR identifikátor, nie IČO.
+          // Frontend ponúkne "Otvoriť ORSR" link na detail.
+        });
+        if (results.length >= 6) break;
+      }
+      return results;
+    } catch {
+      return [];
+    }
   }
 
   // ─────────────────────────────────────────────────────────

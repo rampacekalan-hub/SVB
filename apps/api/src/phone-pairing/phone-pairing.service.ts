@@ -18,7 +18,7 @@ import { StorageService } from '../storage/storage.service';
 import { PhonePairingPurpose } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 
-interface AuthedUser { sub: string; }
+interface AuthedUser { id: string; }
 
 const TTL_MIN = 15;
 
@@ -46,7 +46,7 @@ export class PhonePairingService {
         purpose: dto.purpose,
         buildingId: dto.buildingId,
         contextId: dto.contextId,
-        createdById: user.sub,
+        createdById: user.id,
         expiresAt,
       },
     });
@@ -112,7 +112,7 @@ export class PhonePairingService {
 
   private async assertBuildingAccess(user: AuthedUser, buildingId: string) {
     const m = await this.prisma.membership.findFirst({
-      where: { userId: user.sub, buildingId, role: { in: ['CHAIRMAN', 'MANAGER', 'ADMIN'] } },
+      where: { userId: user.id, buildingId, role: { in: ['CHAIRMAN', 'MANAGER', 'ADMIN'] } },
     });
     if (!m) throw new ForbiddenException();
   }

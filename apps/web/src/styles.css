@@ -3979,6 +3979,60 @@ html[data-theme='dark'] .mk-noise::before,
 .mk-tst figcaption span { color: var(--fg-subtle); font-size: 0.8125rem; }
 
 /* ============================================================
+   COMPANY NAME SEARCH — autocomplete dropdown
+   ============================================================ */
+
+.cns {
+  margin-top: 4px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 12px 24px -8px rgba(15, 23, 42, 0.12);
+  max-height: 320px;
+  overflow-y: auto;
+}
+.cns-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  border-bottom: 1px solid #f1f5f9;
+  text-align: left;
+  width: 100%;
+}
+.cns-row:last-child { border-bottom: none; }
+.cns-loading { color: var(--fg-muted); }
+.cns-empty { color: var(--fg-muted); font-style: italic; }
+.cns-empty a { color: var(--brand); font-weight: 600; }
+.cns-result {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--fg);
+  transition: background 120ms ease;
+}
+.cns-result:hover { background: var(--brand-soft); }
+.cns-result strong { font-weight: 600; }
+.cns-ico { color: var(--fg-subtle); font-size: 0.8125rem; }
+.cns-addr { font-size: 0.75rem; color: var(--fg-muted); margin-top: 2px; }
+.cns-arrow { color: var(--fg-subtle); flex-shrink: 0; margin-left: 12px; }
+.cns-result:hover .cns-arrow { color: var(--brand); }
+.cns-more {
+  display: block;
+  padding: 0.5rem 0.875rem;
+  background: var(--surface-2);
+  font-size: 0.8125rem;
+  color: var(--brand);
+  text-decoration: none;
+  font-weight: 600;
+  text-align: center;
+  border-top: 1px solid var(--border);
+}
+.cns-more:hover { background: var(--brand-soft); }
+
+/* ============================================================
    ICO LOOKUP HINT — RPO / ARES auto-fill widget
    ============================================================ */
 

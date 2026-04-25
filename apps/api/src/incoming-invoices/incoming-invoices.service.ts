@@ -17,7 +17,7 @@ import { StorageService } from '../storage/storage.service';
 import { SuppliersService } from '../suppliers/suppliers.service';
 import { IncomingInvoiceStatus } from '@prisma/client';
 
-interface AuthedUser { sub: string; }
+interface AuthedUser { id: string; }
 
 @Injectable()
 export class IncomingInvoicesService {
@@ -79,7 +79,7 @@ export class IncomingInvoicesService {
         description: dto.description,
         category: dto.category,
         status: 'PENDING',
-        createdById: user.sub,
+        createdById: user.id,
       },
       include: { supplier: true, attachments: true },
     });
@@ -161,7 +161,7 @@ export class IncomingInvoicesService {
         mimeType: file.mimetype,
         sizeBytes: result.size,
         sha256: result.sha256,
-        uploadedById: user.sub,
+        uploadedById: user.id,
       },
     });
   }
@@ -227,7 +227,7 @@ export class IncomingInvoicesService {
   private async assertBuildingAccess(user: AuthedUser, buildingId: string) {
     const m = await this.prisma.membership.findFirst({
       where: {
-        userId: user.sub,
+        userId: user.id,
         buildingId,
         role: { in: ['CHAIRMAN', 'MANAGER', 'ADMIN'] },
       },

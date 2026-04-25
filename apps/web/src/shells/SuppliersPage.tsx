@@ -15,6 +15,7 @@ import { SkeletonList } from '../components/Skeleton';
 import { Icon } from '../components/Icons';
 import { IcoLookupHint } from '../components/IcoLookup';
 import type { RegistryResult } from '../hooks/useIcoLookup';
+import { CompanyNameSearch, type NameSearchResult } from '../components/CompanyNameSearch';
 
 interface Supplier {
   id: string;
@@ -210,8 +211,26 @@ function SupplierEditor({
             </>
           }
         >
-          <Field label="Názov firmy" required>
-            <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="napr. Tatra-banka, ZSE Energia, OTIS Slovakia" />
+          <Field label="Názov firmy" required hint="Pri písaní sa zobrazia návrhy z ORSR.sk">
+            <input
+              required
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="napr. Tatra banka, ZSE Energia, OTIS Slovakia"
+              autoComplete="off"
+            />
+            <CompanyNameSearch
+              query={form.name}
+              country="SK"
+              onPick={(r: NameSearchResult) => {
+                setForm((f) => ({
+                  ...f,
+                  name: r.name ?? f.name,
+                  ico: r.ico ?? f.ico,
+                  address: r.address ?? f.address,
+                }));
+              }}
+            />
           </Field>
           <Row>
             <Field label="Kategória" hint="Pomáha pri triedení faktúr">
