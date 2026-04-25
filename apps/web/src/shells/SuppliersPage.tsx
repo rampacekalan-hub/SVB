@@ -13,6 +13,8 @@ import { Field, Form, Row } from '../components/forms';
 import { EmptyState, ListItem, Section, StatusPill } from '../components/ui';
 import { SkeletonList } from '../components/Skeleton';
 import { Icon } from '../components/Icons';
+import { IcoLookupHint } from '../components/IcoLookup';
+import type { RegistryResult } from '../hooks/useIcoLookup';
 
 interface Supplier {
   id: string;
@@ -132,6 +134,18 @@ function SupplierEditor({
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [icoApplied, setIcoApplied] = useState(false);
+
+  function applyRegistry(r: RegistryResult) {
+    setForm((f) => ({
+      ...f,
+      name: r.name ?? f.name,
+      dic: r.dic ?? f.dic,
+      vatId: r.vatId ?? f.vatId,
+      address: r.address ?? f.address,
+    }));
+    setIcoApplied(true);
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -206,8 +220,20 @@ function SupplierEditor({
                 {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </Field>
-            <Field label="IČO" hint="Pri uploadu faktúry sa systém pokúsi nájsť dodávateľa podľa IČO">
-              <input value={form.ico} onChange={(e) => setForm({ ...form, ico: e.target.value })} placeholder="12345678" />
+            <Field label="IČO" hint="Po zadaní IČO sa údaje firmy automaticky doplnia z RPO / ARES">
+              <input
+                value={form.ico}
+                onChange={(e) => { setForm({ ...form, ico: e.target.value }); setIcoApplied(false); }}
+                placeholder="12345678"
+                inputMode="numeric"
+                maxLength={8}
+              />
+              <IcoLookupHint
+                ico={form.ico}
+                country="SK"
+                onApply={applyRegistry}
+                applied={icoApplied}
+              />
             </Field>
           </Row>
           <Row>

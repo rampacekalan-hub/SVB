@@ -25,6 +25,7 @@ import { HealthModule } from './health/health.module';
 import { SuppliersModule } from './suppliers/suppliers.module';
 import { IncomingInvoicesModule } from './incoming-invoices/incoming-invoices.module';
 import { PhonePairingModule } from './phone-pairing/phone-pairing.module';
+import { ExternalRegistryModule } from './external-registry/external-registry.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { PhonePairingModule } from './phone-pairing/phone-pairing.module';
     SuppliersModule,
     IncomingInvoicesModule,
     PhonePairingModule,
+    ExternalRegistryModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

@@ -545,12 +545,13 @@ function PhonePairWidget({ buildingId, onPhotoReceived, onCancel }: {
           body: JSON.stringify({ purpose: 'INCOMING_INVOICE_PHOTO', buildingId }),
         });
         setSession(s);
-        // Generuj QR cez qrcode lib
-        const QRCode = await import('qrcode');
-        const svg = await QRCode.toString(s.pairUrl, { type: 'svg', margin: 1, width: 280 });
+        // Generuj QR cez qrcode lib (CommonJS export → musí cez .default)
+        const mod: any = await import('qrcode');
+        const QRCode = mod.default ?? mod;
+        const svg: string = await QRCode.toString(s.pairUrl, { type: 'svg', margin: 1, width: 280, errorCorrectionLevel: 'M' });
         setQrSvg(svg);
       } catch (e) {
-        setErr((e as Error).message);
+        setErr('Nepodarilo sa vygenerovať QR kód: ' + (e as Error).message);
       }
     })();
   }, [buildingId]);

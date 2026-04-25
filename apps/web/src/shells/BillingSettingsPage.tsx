@@ -10,6 +10,8 @@ import { PageHeader } from '../components/PageHeader';
 import { Btn } from '../components/Button';
 import { Field, Form, Row } from '../components/forms';
 import { SkeletonList } from '../components/Skeleton';
+import { IcoLookupHint } from '../components/IcoLookup';
+import type { RegistryResult } from '../hooks/useIcoLookup';
 
 interface Building {
   id: string;
@@ -33,6 +35,20 @@ export function BillingSettingsPage({ buildingId }: { buildingId: string }) {
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [icoApplied, setIcoApplied] = useState(false);
+
+  function applyRegistry(r: RegistryResult) {
+    if (!b) return;
+    setB({
+      ...b,
+      billingName: b.billingName || r.name || null,
+      billingDic: b.billingDic || r.dic || null,
+      billingVatId: b.billingVatId || r.vatId || null,
+      billingAddress: b.billingAddress || r.address || null,
+      billingRegistry: b.billingRegistry || r.registry || null,
+    });
+    setIcoApplied(true);
+  }
 
   useEffect(() => {
     api<Building>(`/buildings/${buildingId}`).then(setB).catch((e) => setErr((e as Error).message));
@@ -120,12 +136,20 @@ export function BillingSettingsPage({ buildingId }: { buildingId: string }) {
         </Field>
 
         <Row>
-          <Field label="IČO" required>
+          <Field label="IČO" required hint="Po zadaní IČO sa údaje automaticky doplnia z RPO (SR) alebo ARES (ČR)">
             <input
               required
               value={b.billingIco ?? ''}
-              onChange={(e) => set('billingIco', e.target.value)}
+              onChange={(e) => { set('billingIco', e.target.value); setIcoApplied(false); }}
               placeholder="12345678"
+              inputMode="numeric"
+              maxLength={8}
+            />
+            <IcoLookupHint
+              ico={b.billingIco ?? ''}
+              country="SK"
+              onApply={applyRegistry}
+              applied={icoApplied}
             />
           </Field>
           <Field label="DIČ">

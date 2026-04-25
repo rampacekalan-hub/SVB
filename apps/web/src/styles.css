@@ -3979,6 +3979,113 @@ html[data-theme='dark'] .mk-noise::before,
 .mk-tst figcaption span { color: var(--fg-subtle); font-size: 0.8125rem; }
 
 /* ============================================================
+   ICO LOOKUP HINT — RPO / ARES auto-fill widget
+   ============================================================ */
+
+.ico-hint {
+  margin-top: 0.5rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  border: 1px solid;
+  animation: icoHintIn 200ms ease;
+}
+@keyframes icoHintIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ico-hint-searching {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: var(--fg-muted);
+}
+.ico-hint-found {
+  background: color-mix(in srgb, var(--ok-600) 8%, transparent);
+  border-color: color-mix(in srgb, var(--ok-600) 30%, transparent);
+  color: var(--fg);
+}
+.ico-hint-notFound,
+.ico-hint-error {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #92400e;
+}
+
+.ico-hint-spinner {
+  width: 14px; height: 14px;
+  border: 2px solid #cbd5e1;
+  border-top-color: var(--brand);
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.ico-hint-icon {
+  font-size: 1.125rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.ico-hint-body { flex: 1; min-width: 0; }
+.ico-hint-title {
+  font-weight: 700;
+  color: var(--fg);
+  font-size: 0.9375rem;
+  line-height: 1.3;
+}
+.ico-hint-inactive {
+  font-weight: 500;
+  color: var(--urgent);
+  font-size: 0.8125rem;
+}
+.ico-hint-sub {
+  font-size: 0.8125rem;
+  color: var(--fg-muted);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+.ico-hint-source {
+  font-size: 0.75rem;
+  color: var(--fg-subtle);
+  margin-top: 4px;
+  font-style: italic;
+}
+
+.ico-hint-apply {
+  flex-shrink: 0;
+  align-self: center;
+  padding: 0.375rem 0.75rem;
+  background: var(--brand);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 160ms ease, transform 160ms ease;
+  white-space: nowrap;
+}
+.ico-hint-apply:hover {
+  background: #0f766e;
+  transform: translateY(-1px);
+}
+
+.ico-hint-applied {
+  font-size: 0.75rem;
+  color: var(--ok-600);
+  font-weight: 700;
+  align-self: center;
+  flex-shrink: 0;
+}
+
+/* ============================================================
    INCOMING INVOICES — dashboard, list, OCR, phone-pair
    ============================================================ */
 
@@ -4433,38 +4540,52 @@ html[data-theme='dark'] .mk-noise::before,
 /* Mobile hamburger — skrytý na desktope */
 .mk-menu-toggle {
   display: none;
-  width: 40px;
-  height: 40px;
-  border: 1px solid var(--border);
-  background: var(--surface);
+  width: 44px;
+  height: 44px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
   border-radius: 10px;
-  color: var(--fg);
+  color: #0f172a;
   cursor: pointer;
   align-items: center;
   justify-content: center;
   transition: border-color 160ms ease, background 160ms ease;
   margin-left: auto;
-  margin-right: 0.5rem;
+  flex-shrink: 0;
 }
-.mk-menu-toggle:hover {
-  border-color: var(--brand);
-  background: var(--brand-soft);
-  color: var(--brand);
+.mk-menu-toggle:hover,
+.mk-menu-toggle:active {
+  border-color: #0f766e;
+  background: #ccfbf1;
+  color: #0f766e;
 }
 
 /* Breakpoint: skryť inline menu, zobraziť hamburger */
 @media (max-width: 980px) {
   .mk-menu-desktop { display: none; }
   .mk-menu-toggle { display: inline-flex; }
+  /* Schovaj login link na mobile — je v draweri */
+  .topbar-actions .btn-link.secondary { display: none; }
+  /* Zmenšenie topbar-u, aby logo + hamburger + register sedeli */
+  .topbar { padding: 0.625rem 0.875rem !important; gap: 0.5rem; }
+  .topbar .brand { font-size: 1rem; }
+  .topbar-actions { gap: 0.5rem; }
+  .topbar-actions .btn-link.primary {
+    padding: 0.5rem 0.875rem !important;
+    font-size: 0.875rem !important;
+    min-height: 40px !important;
+  }
+}
+@media (max-width: 480px) {
+  .topbar .brand-mark { width: 28px; height: 28px; }
+  .topbar .brand { gap: 0.5rem; }
 }
 
-/* Mobile drawer */
+/* Mobile drawer — vynútené svetlé farby (žiadne dark-mode prekvapenia) */
 .mk-drawer-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.5);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.55);
   z-index: 100;
   animation: drawerFade 200ms ease;
 }
@@ -4477,12 +4598,13 @@ html[data-theme='dark'] .mk-noise::before,
   top: 0;
   right: 0;
   bottom: 0;
-  width: min(360px, 88vw);
-  background: var(--surface);
+  width: min(380px, 90vw);
+  background: #ffffff !important;
   box-shadow: -24px 0 60px -20px rgba(15, 23, 42, 0.3);
   display: flex;
   flex-direction: column;
   animation: drawerSlide 280ms cubic-bezier(.16,.84,.28,1);
+  z-index: 101;
 }
 @keyframes drawerSlide {
   from { transform: translateX(100%); }
@@ -4492,90 +4614,107 @@ html[data-theme='dark'] .mk-noise::before,
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid var(--border);
+  padding: 1.125rem 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
 }
 .mk-drawer-head strong {
   font-size: 0.75rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: var(--fg-subtle);
+  color: #64748b;
 }
 .mk-drawer-close {
   width: 36px;
   height: 36px;
   border: none;
-  background: var(--surface-2);
+  background: #f1f5f9;
   border-radius: 50%;
-  color: var(--fg);
+  color: #0f172a;
   cursor: pointer;
   font-size: 1.125rem;
   font-weight: 700;
   transition: background 160ms ease;
+  display: grid;
+  place-items: center;
 }
-.mk-drawer-close:hover { background: var(--brand-soft); color: var(--brand); }
+.mk-drawer-close:hover { background: #ccfbf1; color: #0f766e; }
 
 .mk-drawer-list {
   flex: 1;
   list-style: none;
-  padding: 1rem 0;
+  padding: 0.5rem 0;
   margin: 0;
   overflow-y: auto;
+  background: #ffffff;
 }
+.mk-drawer-list li { margin: 0; padding: 0; }
 .mk-drawer-link {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 1.5rem;
-  color: var(--fg);
-  text-decoration: none;
-  font-size: 1.0625rem;
-  font-weight: 600;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding: 1rem 1.5rem !important;
+  color: #0f172a !important;
+  text-decoration: none !important;
+  font-size: 1.0625rem !important;
+  font-weight: 600 !important;
   border-left: 3px solid transparent;
   transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+  background: transparent;
+  width: 100%;
+  box-sizing: border-box;
 }
-.mk-drawer-link:hover {
-  background: var(--surface-2);
-  color: var(--brand);
+.mk-drawer-link:hover,
+.mk-drawer-link:active {
+  background: #f1f5f9;
+  color: #0f766e !important;
 }
 .mk-drawer-link-active {
-  background: var(--brand-soft);
-  color: var(--brand);
-  border-left-color: var(--brand);
+  background: #ccfbf1;
+  color: #0f766e !important;
+  border-left-color: #0f766e;
 }
 .mk-drawer-arrow {
-  color: var(--fg-subtle);
+  color: #94a3b8;
+  font-size: 1rem;
   transition: transform 160ms ease;
 }
 .mk-drawer-link:hover .mk-drawer-arrow {
-  color: var(--brand);
+  color: #0f766e;
   transform: translateX(4px);
 }
 
 .mk-drawer-cta {
-  padding: 1.25rem 1.5rem;
-  border-top: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: 0.625rem;
-}
-.mk-drawer-cta .mk-btn { min-height: 48px; justify-content: center; }
-
-.mk-drawer-foot {
-  padding: 1rem 1.5rem;
-  border-top: 1px solid var(--border);
-  background: var(--surface-2);
+  padding: 1rem 1.25rem;
+  border-top: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  background: #ffffff;
+}
+.mk-drawer-cta .mk-btn {
+  min-height: 48px !important;
+  justify-content: center !important;
+  font-size: 0.9375rem !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mk-drawer-foot {
+  padding: 0.875rem 1.25rem;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
   font-size: 0.875rem;
 }
 .mk-drawer-foot a {
-  color: var(--fg-muted);
+  color: #475569;
   text-decoration: none;
 }
-.mk-drawer-foot a:hover { color: var(--brand); }
+.mk-drawer-foot a:hover { color: #0f766e; }
 
 /* ============================================================
    MARKETING NAV — sticky in-page navigácia s scrollspy
