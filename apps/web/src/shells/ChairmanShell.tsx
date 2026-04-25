@@ -36,6 +36,9 @@ import { IssueBulkPage } from './InvoicePages';
 import { MembersPage } from './MembersPage';
 import { AuditPage } from './AuditPage';
 import { DocumentsPage } from './DocumentsPage';
+import { IncomingInvoicesPage, NewIncomingInvoicePage, IncomingInvoiceDetailPage } from './IncomingInvoicesPage';
+import { SuppliersPage } from './SuppliersPage';
+import { BillingSettingsPage } from './BillingSettingsPage';
 import { OnboardingChecklist } from '../components/OnboardingChecklist';
 import { Icon, IconName } from '../components/Icons';
 import type { Me } from '../types';
@@ -77,6 +80,11 @@ export function ChairmanShell({ me }: { me: Me }) {
           <Route path="oznamy/nova" element={<NewAnnouncementPage />} />
           <Route path="platby" element={<PaymentsPage />} />
           <Route path="platby/nova-davka" element={<IssueBulkPage />} />
+          <Route path="prijate-faktury" element={<IncomingInvoicesPage buildingId={membership.building.id} />} />
+          <Route path="prijate-faktury/nova" element={<NewIncomingInvoicePage buildingId={membership.building.id} />} />
+          <Route path="prijate-faktury/:iid" element={<IncomingInvoiceDetailPage />} />
+          <Route path="dodavatelia" element={<SuppliersPage buildingId={membership.building.id} />} />
+          <Route path="fakturacia" element={<BillingSettingsPage buildingId={membership.building.id} />} />
           <Route path="revizie" element={<RevisionsTab buildingId={membership.building.id} />} />
           <Route path="revizie/nova" element={<NewRevisionPage />} />
           <Route path="byty" element={<ApartmentsPage />} />
@@ -123,8 +131,12 @@ function Sidebar({ buildingId, buildingName }: { buildingId: string; buildingNam
           <NavItem to={`${base}/poruchy`} icon="wrench" label="Poruchy" />
           <NavItem to={`${base}/schodze`} icon="calendar" label="Schôdze" />
           <NavItem to={`${base}/oznamy`} icon="announcement" label="Oznamy" />
+          <li className="shell-nav-group">Financie</li>
+          <NavItem to={`${base}/platby`} icon="money" label="Vystavené faktúry" />
+          <NavItem to={`${base}/prijate-faktury`} icon="download" label="Prijaté faktúry" />
+          <NavItem to={`${base}/dodavatelia`} icon="users" label="Dodávatelia" />
+          <NavItem to={`${base}/fakturacia`} icon="edit" label="Fakturačné údaje" />
           <li className="shell-nav-group">Evidencia</li>
-          <NavItem to={`${base}/platby`} icon="money" label="Platby" />
           <NavItem to={`${base}/revizie`} icon="inspection" label="Revízie" />
           <NavItem to={`${base}/byty`} icon="apartment" label="Byty" />
           <NavItem to={`${base}/ucastnici`} icon="users" label="Účastníci" />

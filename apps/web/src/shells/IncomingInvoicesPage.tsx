@@ -1,0 +1,757 @@
+/**
+ * Prijaté faktúry — od dodávateľov pre SVB.
+ *
+ * Tri stránky:
+ *   IncomingInvoicesPage — list + dashboard KPI + filter
+ *   NewIncomingInvoicePage — upload fotky/PDF s OCR pre-fill alebo ručné zadanie + QR phone-pair
+ *   IncomingInvoiceDetailPage — view + edit + prílohy + mark-paid
+ */
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { api, apiUpload } from '../api';
+import { PageHeader } from '../components/PageHeader';
+import { Btn } from '../components/Button';
+import { Field, Form, Row } from '../components/forms';
+import { EmptyState, ListItem, Section, StatusPill } from '../components/ui';
+import { SkeletonList } from '../components/Skeleton';
+import { Icon } from '../components/Icons';
+
+interface Supplier {
+  id: string;
+  name: string;
+  ico: string | null;
+  iban: string | null;
+  category: string | null;
+}
+
+interface IncomingInvoice {
+  id: string;
+  buildingId: string;
+  supplier: Supplier | null;
+  invoiceNumber: string | null;
+  variableSymbol: string | null;
+  issueDate: string | null;
+  dueDate: string | null;
+  amount: string;
+  currency: string;
+  iban: string | null;
+  description: string | null;
+  category: string | null;
+  status: 'DRAFT' | 'PENDING' | 'APPROVED' | 'PAID' | 'CANCELLED';
+  paidAt: string | null;
+  attachments: Attachment[];
+}
+interface Attachment {
+  id: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedAt: string;
+}
+
+interface DashboardStats {
+  pendingCount: number;
+  overdueCount: number;
+  paidThisMonthCount: number;
+  totalUnpaidAmount: string;
+}
+
+const STATUS_LABEL: Record<IncomingInvoice['status'], { label: string; tone: 'urgent' | 'pending' | 'ok' | 'neutral' }> = {
+  DRAFT:     { label: 'Koncept', tone: 'neutral' },
+  PENDING:   { label: 'Na úhradu', tone: 'pending' },
+  APPROVED:  { label: 'Schválené', tone: 'pending' },
+  PAID:      { label: 'Uhradené', tone: 'ok' },
+  CANCELLED: { label: 'Zrušené', tone: 'neutral' },
+};
+
+/* =============================================================
+   LIST PAGE — prehľad + dashboard
+============================================================= */
+export function IncomingInvoicesPage({ buildingId }: { buildingId: string }) {
+  const [items, setItems] = useState<IncomingInvoice[]>([]);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [filter, setFilter] = useState<'ALL' | 'PENDING' | 'OVERDUE' | 'PAID'>('PENDING');
+
+  async function load() {
+    try {
+      const [list, dash] = await Promise.all([
+        api<IncomingInvoice[]>(`/incoming-invoices/building/${buildingId}`),
+        api<DashboardStats>(`/incoming-invoices/building/${buildingId}/dashboard`),
+      ]);
+      setItems(list);
+      setStats(dash);
+    } finally {
+      setLoaded(true);
+    }
+  }
+  useEffect(() => { load(); }, [buildingId]);
+
+  const now = Date.now();
+  const filtered = items.filter((it) => {
+    if (filter === 'ALL') return true;
+    if (filter === 'PENDING') return ['PENDING', 'APPROVED'].includes(it.status);
+    if (filter === 'OVERDUE') {
+      return ['PENDING', 'APPROVED'].includes(it.status) && it.dueDate && new Date(it.dueDate).getTime() < now;
+    }
+    if (filter === 'PAID') return it.status === 'PAID';
+    return true;
+  });
+
+  return (
+    <>
+      <PageHeader
+        breadcrumb={[{ label: 'Budova', to: `/b/${buildingId}` }, { label: 'Prijaté faktúry' }]}
+        title="Prijaté faktúry"
+        subtitle="Faktúry od dodávateľov — energie, údržba, výťah, plyn. Foto + OCR alebo ručné zadanie."
+        action={
+          <Link to={`/b/${buildingId}/prijate-faktury/nova`} className="ui-btn ui-btn-primary">
+            <Icon name="plus" size={16} /> Pridať faktúru
+          </Link>
+        }
+      />
+
+      {/* Dashboard KPI */}
+      {stats && (
+        <div className="ii-stats">
+          <div className="ii-stat">
+            <div className="ii-stat-label">NA ÚHRADU</div>
+            <div className="ii-stat-val">{stats.pendingCount}</div>
+            <div className="ii-stat-meta">{Number(stats.totalUnpaidAmount).toFixed(2)} €</div>
+          </div>
+          <div className={`ii-stat ${stats.overdueCount > 0 ? 'ii-stat-urgent' : ''}`}>
+            <div className="ii-stat-label">PO SPLATNOSTI</div>
+            <div className="ii-stat-val">{stats.overdueCount}</div>
+            <div className="ii-stat-meta">prešvihnutých</div>
+          </div>
+          <div className="ii-stat ii-stat-ok">
+            <div className="ii-stat-label">UHRADENÉ TENTO MESIAC</div>
+            <div className="ii-stat-val">{stats.paidThisMonthCount}</div>
+            <div className="ii-stat-meta">faktúr</div>
+          </div>
+        </div>
+      )}
+
+      {/* Filter chips */}
+      <div className="pay-filter">
+        {(['PENDING', 'OVERDUE', 'PAID', 'ALL'] as const).map((f) => (
+          <button
+            key={f}
+            className={`pay-chip ${filter === f ? 'active' : ''}`}
+            onClick={() => setFilter(f)}
+          >
+            {f === 'PENDING' ? 'Na úhradu'
+              : f === 'OVERDUE' ? 'Po splatnosti'
+              : f === 'PAID' ? 'Uhradené'
+              : 'Všetky'}
+            {' '}({f === 'ALL' ? items.length : filtered.filter((it) => filterMatches(it, f, now)).length})
+          </button>
+        ))}
+      </div>
+
+      {!loaded && <SkeletonList n={3} />}
+
+      {loaded && filtered.length === 0 && (
+        <EmptyState
+          icon={<Icon name="download" size={40} />}
+          title={filter === 'PENDING' ? 'Žiadne nezaplatené faktúry' : 'Žiadne faktúry'}
+          body={filter === 'PENDING' ? 'Skvelé — všetko je vyplatené.' : 'Pridajte prvú prijatú faktúru — odfoťte ju mobilom alebo nahrajte PDF.'}
+          action={{ label: 'Pridať faktúru', to: `/b/${buildingId}/prijate-faktury/nova` }}
+        />
+      )}
+
+      {filtered.length > 0 && (
+        <Section title={`${filtered.length} ${filtered.length === 1 ? 'faktúra' : 'faktúr'}`}>
+          {filtered.map((it) => {
+            const overdue = ['PENDING', 'APPROVED'].includes(it.status) && it.dueDate && new Date(it.dueDate).getTime() < now;
+            const status = STATUS_LABEL[it.status];
+            return (
+              <ListItem
+                key={it.id}
+                icon={overdue ? '⚠️' : it.attachments.length > 0 ? '📄' : '📋'}
+                title={`${it.supplier?.name ?? 'Bez dodávateľa'} · ${Number(it.amount).toFixed(2)} ${it.currency}`}
+                subtitle={
+                  <>
+                    {it.invoiceNumber && <>FA č. {it.invoiceNumber} · </>}
+                    {it.dueDate && (
+                      <span style={{ color: overdue ? 'var(--urgent)' : 'inherit' }}>
+                        Splatnosť {new Date(it.dueDate).toLocaleDateString('sk-SK')}
+                      </span>
+                    )}
+                    {it.category && <> · {it.category}</>}
+                  </>
+                }
+                status={<StatusPill tone={overdue ? 'urgent' : status.tone}>{overdue ? 'Po splatnosti' : status.label}</StatusPill>}
+                to={`/b/${buildingId}/prijate-faktury/${it.id}`}
+              />
+            );
+          })}
+        </Section>
+      )}
+    </>
+  );
+}
+
+function filterMatches(it: IncomingInvoice, f: 'PENDING' | 'OVERDUE' | 'PAID', now: number): boolean {
+  if (f === 'PENDING') return ['PENDING', 'APPROVED'].includes(it.status);
+  if (f === 'OVERDUE') return ['PENDING', 'APPROVED'].includes(it.status) && it.dueDate != null && new Date(it.dueDate).getTime() < now;
+  if (f === 'PAID') return it.status === 'PAID';
+  return true;
+}
+
+/* =============================================================
+   NEW PAGE — upload + OCR + manual form + phone-pair
+============================================================= */
+export function NewIncomingInvoicePage({ buildingId }: { buildingId: string }) {
+  const navigate = useNavigate();
+  const [mode, setMode] = useState<'choose' | 'photo' | 'manual' | 'phone'>('choose');
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  // OCR výsledok
+  const [ocrPreview, setOcrPreview] = useState<{ extraction: any; suggestedSupplier: Supplier | null; file: File } | null>(null);
+
+  // Manuálny formulár (pre-fill z OCR alebo prázdny)
+  const [form, setForm] = useState({
+    supplierId: '',
+    invoiceNumber: '',
+    variableSymbol: '',
+    issueDate: '',
+    dueDate: '',
+    amount: '',
+    iban: '',
+    description: '',
+    category: '',
+  });
+  const [pendingAttachment, setPendingAttachment] = useState<File | null>(null);
+
+  useEffect(() => {
+    api<Supplier[]>(`/suppliers/building/${buildingId}`).then(setSuppliers).catch(() => {});
+  }, [buildingId]);
+
+  async function ocrUpload(file: File) {
+    setBusy(true); setErr(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('buildingId', buildingId);
+      const token = localStorage.getItem('domovplus.accessToken');
+      const res = await fetch('/api/incoming-invoices/ocr-preview', {
+        method: 'POST',
+        body: fd,
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      setOcrPreview({ ...data, file });
+      setPendingAttachment(file);
+
+      // Pre-fill form z OCR výsledku
+      const ex = data.extraction;
+      setForm((f) => ({
+        ...f,
+        supplierId: data.suggestedSupplier?.id ?? f.supplierId,
+        invoiceNumber: ex.invoiceNumber ?? f.invoiceNumber,
+        variableSymbol: ex.variableSymbol ?? f.variableSymbol,
+        issueDate: ex.issueDate ? ex.issueDate.slice(0, 10) : f.issueDate,
+        dueDate: ex.dueDate ? ex.dueDate.slice(0, 10) : f.dueDate,
+        amount: ex.amount ?? f.amount,
+        iban: ex.iban ?? f.iban,
+      }));
+      setMode('manual');
+    } catch (e) {
+      setErr('OCR zlyhalo: ' + (e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitForm(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true); setErr(null);
+    try {
+      const created = await api<IncomingInvoice>('/incoming-invoices', {
+        method: 'POST',
+        body: JSON.stringify({
+          buildingId,
+          supplierId: form.supplierId || undefined,
+          invoiceNumber: form.invoiceNumber || undefined,
+          variableSymbol: form.variableSymbol || undefined,
+          issueDate: form.issueDate || undefined,
+          dueDate: form.dueDate || undefined,
+          amount: form.amount,
+          iban: form.iban || undefined,
+          description: form.description || undefined,
+          category: form.category || undefined,
+        }),
+      });
+
+      // Ak máme prílohu (z OCR alebo manuálne nahranú), pošleme ju
+      if (pendingAttachment) {
+        await apiUpload(`/incoming-invoices/${created.id}/attachments`, pendingAttachment);
+      }
+
+      navigate(`/b/${buildingId}/prijate-faktury/${created.id}`);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <PageHeader
+        breadcrumb={[
+          { label: 'Budova', to: `/b/${buildingId}` },
+          { label: 'Prijaté faktúry', to: `/b/${buildingId}/prijate-faktury` },
+          { label: 'Nová' },
+        ]}
+        title="Pridať prijatú faktúru"
+        subtitle="Nahrajte fotku alebo PDF — systém vytiahne údaje. Alebo zadajte ručne."
+      />
+
+      {mode === 'choose' && (
+        <div className="ii-method-grid">
+          <button className="ii-method" onClick={() => setMode('photo')}>
+            <span className="ii-method-ic">📷</span>
+            <strong>Foto / PDF z PC</strong>
+            <span>Nahrať súbor → OCR vytiahne sumu, IBAN, IČO, VS, dátumy</span>
+          </button>
+          <button className="ii-method" onClick={() => setMode('phone')}>
+            <span className="ii-method-ic">📱</span>
+            <strong>Odfotiť mobilom</strong>
+            <span>Naskenujete QR kód mobilom → odfotíte → automaticky uploadne</span>
+          </button>
+          <button className="ii-method" onClick={() => setMode('manual')}>
+            <span className="ii-method-ic">✏️</span>
+            <strong>Zadať ručne</strong>
+            <span>Pre faktúry, ktoré máte len v texte alebo emaile</span>
+          </button>
+        </div>
+      )}
+
+      {mode === 'photo' && (
+        <PhotoUpload
+          onUpload={ocrUpload}
+          busy={busy}
+          err={err}
+          onCancel={() => { setMode('choose'); setErr(null); }}
+        />
+      )}
+
+      {mode === 'phone' && (
+        <PhonePairWidget
+          buildingId={buildingId}
+          onPhotoReceived={(storageKey) => {
+            setMode('manual');
+            // Phone-pair nahral fotku. Po kliku na "Pokračovať" spustíme OCR — už máme storage key
+            // Pre teraz: predseda klikne ručne potvrdenie, OCR sa spustí ak chce
+          }}
+          onCancel={() => setMode('choose')}
+        />
+      )}
+
+      {mode === 'manual' && (
+        <>
+          {ocrPreview && (
+            <div className="ii-ocr-summary">
+              <div className="ii-ocr-head">
+                <strong>OCR rozpoznal</strong>
+                <span className="ii-ocr-conf">presnosť {(ocrPreview.extraction.confidence * 100).toFixed(0)} %</span>
+              </div>
+              <div className="ii-ocr-fields">
+                {ocrPreview.suggestedSupplier && (
+                  <span className="ii-ocr-pill ii-ocr-pill-ok">
+                    ✓ Dodávateľ rozpoznaný: <strong>{ocrPreview.suggestedSupplier.name}</strong>
+                  </span>
+                )}
+                {ocrPreview.extraction.amount && <span className="ii-ocr-pill">Suma {ocrPreview.extraction.amount} €</span>}
+                {ocrPreview.extraction.iban && <span className="ii-ocr-pill">IBAN {ocrPreview.extraction.iban}</span>}
+                {ocrPreview.extraction.ico && <span className="ii-ocr-pill">IČO {ocrPreview.extraction.ico}</span>}
+                {ocrPreview.extraction.variableSymbol && <span className="ii-ocr-pill">VS {ocrPreview.extraction.variableSymbol}</span>}
+                {ocrPreview.extraction.dueDate && <span className="ii-ocr-pill">Splatnosť {ocrPreview.extraction.dueDate.slice(0, 10)}</span>}
+              </div>
+              <p className="ii-ocr-note">Skontrolujte alebo opravte hodnoty v formulári nižšie pred uložením.</p>
+            </div>
+          )}
+
+          <Form
+            title=""
+            onSubmit={submitForm}
+            error={err}
+            actions={
+              <>
+                <Btn type="submit" busy={busy} disabled={!form.amount}>
+                  {busy ? 'Ukladám…' : 'Uložiť faktúru'}
+                </Btn>
+                <Btn variant="ghost" onClick={() => setMode('choose')}>← Späť</Btn>
+              </>
+            }
+          >
+            <Row>
+              <Field label="Dodávateľ">
+                <select value={form.supplierId} onChange={(e) => setForm({ ...form, supplierId: e.target.value })}>
+                  <option value="">— bez dodávateľa —</option>
+                  {suppliers.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}{s.ico ? ` · IČO ${s.ico}` : ''}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Kategória">
+                <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+                  <option value="">— vyberte —</option>
+                  <option>Energie</option>
+                  <option>Plyn</option>
+                  <option>Voda</option>
+                  <option>Teplo</option>
+                  <option>Elektrina</option>
+                  <option>Výťah</option>
+                  <option>Komín</option>
+                  <option>Údržba</option>
+                  <option>Materiál</option>
+                  <option>Účtovníctvo</option>
+                  <option>Právne služby</option>
+                  <option>Poistenie</option>
+                  <option>Iné</option>
+                </select>
+              </Field>
+            </Row>
+
+            <Row>
+              <Field label="Číslo faktúry">
+                <input value={form.invoiceNumber} onChange={(e) => setForm({ ...form, invoiceNumber: e.target.value })} placeholder="FA2026/0042" />
+              </Field>
+              <Field label="Variabilný symbol">
+                <input value={form.variableSymbol} onChange={(e) => setForm({ ...form, variableSymbol: e.target.value })} placeholder="20260042" />
+              </Field>
+            </Row>
+
+            <Row>
+              <Field label="Suma" required>
+                <input
+                  required
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={form.amount}
+                  onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                  placeholder="124,50"
+                />
+              </Field>
+              <Field label="IBAN dodávateľa">
+                <input
+                  value={form.iban}
+                  onChange={(e) => setForm({ ...form, iban: e.target.value })}
+                  placeholder="SK00 0000 0000 0000 0000 0000"
+                  style={{ fontFamily: 'ui-monospace, monospace' }}
+                />
+              </Field>
+            </Row>
+
+            <Row>
+              <Field label="Dátum vystavenia">
+                <input type="date" value={form.issueDate} onChange={(e) => setForm({ ...form, issueDate: e.target.value })} />
+              </Field>
+              <Field label="Splatnosť" required>
+                <input required type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
+              </Field>
+            </Row>
+
+            <Field label="Popis / poznámka">
+              <textarea rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="napr. Fakturácia za apríl 2026 — elektrina spoločných priestorov" />
+            </Field>
+
+            {!pendingAttachment && (
+              <Field label="Príloha (voliteľne)" hint="PDF alebo fotka faktúry">
+                <input
+                  type="file"
+                  accept="application/pdf,image/*"
+                  onChange={(e) => setPendingAttachment(e.target.files?.[0] ?? null)}
+                />
+              </Field>
+            )}
+            {pendingAttachment && (
+              <div className="ii-attachment-pill">
+                <Icon name="file" size={16} />
+                <span>{pendingAttachment.name} ({(pendingAttachment.size / 1024).toFixed(0)} kB)</span>
+                <Btn variant="ghost" onClick={() => setPendingAttachment(null)} style={{ minHeight: 28, padding: '0 8px' }}>✕</Btn>
+              </div>
+            )}
+          </Form>
+        </>
+      )}
+    </>
+  );
+}
+
+/* =============================================================
+   PhotoUpload — drag/drop + file input
+============================================================= */
+function PhotoUpload({ onUpload, busy, err, onCancel }: {
+  onUpload: (file: File) => void;
+  busy: boolean;
+  err: string | null;
+  onCancel: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  return (
+    <div className="ii-photo-zone">
+      <div className="ii-photo-card">
+        <div className="ii-photo-icon">📷</div>
+        <h3>Nahrajte fotku alebo PDF faktúry</h3>
+        <p>Systém spustí OCR a predvyplní všetky polia. Skontrolujete a uložíte.</p>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="application/pdf,image/jpeg,image/png,image/webp"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) onUpload(f);
+          }}
+        />
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 16 }}>
+          <Btn busy={busy} onClick={() => inputRef.current?.click()}>
+            {busy ? 'Spracovávam…' : 'Vybrať súbor'}
+          </Btn>
+          <Btn variant="ghost" onClick={onCancel}>← Späť</Btn>
+        </div>
+        {err && <p className="dp-form-error" style={{ marginTop: 12 }}>{err}</p>}
+      </div>
+    </div>
+  );
+}
+
+/* =============================================================
+   PhonePairWidget — QR kód, polling, photo received
+============================================================= */
+function PhonePairWidget({ buildingId, onPhotoReceived, onCancel }: {
+  buildingId: string;
+  onPhotoReceived: (storageKey: string) => void;
+  onCancel: () => void;
+}) {
+  const [session, setSession] = useState<{ id: string; pairUrl: string; ttlSeconds: number } | null>(null);
+  const [qrSvg, setQrSvg] = useState<string>('');
+  const [err, setErr] = useState<string | null>(null);
+  const [keysReceived, setKeysReceived] = useState<string[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const s = await api<any>('/phone-pairing', {
+          method: 'POST',
+          body: JSON.stringify({ purpose: 'INCOMING_INVOICE_PHOTO', buildingId }),
+        });
+        setSession(s);
+        // Generuj QR cez qrcode lib
+        const QRCode = await import('qrcode');
+        const svg = await QRCode.toString(s.pairUrl, { type: 'svg', margin: 1, width: 280 });
+        setQrSvg(svg);
+      } catch (e) {
+        setErr((e as Error).message);
+      }
+    })();
+  }, [buildingId]);
+
+  // Polling stavu sesssion každé 2 sekundy
+  useEffect(() => {
+    if (!session) return;
+    const iv = setInterval(async () => {
+      try {
+        const status = await api<{ uploadedKeys: string[]; consumedAt: string | null }>(
+          `/phone-pairing/${session.id}/status`,
+        );
+        if (status.uploadedKeys.length > keysReceived.length) {
+          setKeysReceived(status.uploadedKeys);
+          if (status.uploadedKeys.length > 0) {
+            onPhotoReceived(status.uploadedKeys[status.uploadedKeys.length - 1]);
+          }
+        }
+      } catch { /* ignore polling errors */ }
+    }, 2000);
+    return () => clearInterval(iv);
+  }, [session, keysReceived.length, onPhotoReceived]);
+
+  return (
+    <div className="ii-pair">
+      <div className="ii-pair-card">
+        <h3>Naskenujte QR kód mobilom</h3>
+        <p className="inline-meta">Otvorí sa stránka, kde môžete odfotiť faktúru. Foto sa automaticky pošle sem.</p>
+
+        {err && <div className="dp-form-error">{err}</div>}
+
+        {qrSvg && <div className="ii-pair-qr" dangerouslySetInnerHTML={{ __html: qrSvg }} />}
+
+        {session && (
+          <p className="ii-pair-url">
+            Alebo otvorte odkaz na mobile: <br />
+            <code>{session.pairUrl}</code>
+          </p>
+        )}
+
+        {keysReceived.length > 0 ? (
+          <div className="dp-alert-ok">
+            ✓ Foto prijatá ({keysReceived.length}). Pokračujem na formulár…
+          </div>
+        ) : (
+          <p className="inline-meta">Čakám na foto z mobilu…</p>
+        )}
+
+        <Btn variant="ghost" onClick={onCancel}>← Zrušiť</Btn>
+      </div>
+    </div>
+  );
+}
+
+/* =============================================================
+   DETAIL PAGE
+============================================================= */
+export function IncomingInvoiceDetailPage() {
+  const { buildingId, iid } = useParams<{ buildingId: string; iid: string }>();
+  const navigate = useNavigate();
+  const [inv, setInv] = useState<IncomingInvoice | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [paidNote, setPaidNote] = useState('');
+
+  async function load() {
+    if (!iid) return;
+    try {
+      const r = await api<IncomingInvoice>(`/incoming-invoices/${iid}`);
+      setInv(r);
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+  }
+  useEffect(() => { load(); }, [iid]);
+
+  async function markPaid() {
+    if (!iid) return;
+    setBusy(true); setErr(null);
+    try {
+      await api(`/incoming-invoices/${iid}/mark-paid`, {
+        method: 'POST',
+        body: JSON.stringify({ paidNote }),
+      });
+      await load();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally { setBusy(false); }
+  }
+
+  async function viewAttachment(attId: string) {
+    try {
+      const r = await api<{ url: string }>(`/incoming-invoices/attachments/${attId}/url`);
+      window.open(r.url, '_blank');
+    } catch (e) {
+      alert('Nepodarilo sa otvoriť: ' + (e as Error).message);
+    }
+  }
+
+  async function deleteInvoice() {
+    if (!iid || !confirm('Naozaj vymazať túto faktúru a všetky jej prílohy?')) return;
+    try {
+      await api(`/incoming-invoices/${iid}`, { method: 'DELETE' });
+      navigate(`/b/${buildingId}/prijate-faktury`);
+    } catch (e) {
+      alert('Vymazanie zlyhalo: ' + (e as Error).message);
+    }
+  }
+
+  if (!inv) {
+    return (
+      <>
+        <PageHeader
+          breadcrumb={[{ label: 'Budova', to: `/b/${buildingId}` }, { label: 'Prijaté faktúry', to: `/b/${buildingId}/prijate-faktury` }, { label: 'Detail' }]}
+          title="Načítavam…"
+        />
+        {err ? <div className="dp-form-error">{err}</div> : <SkeletonList n={2} />}
+      </>
+    );
+  }
+
+  const status = STATUS_LABEL[inv.status];
+  const overdue = ['PENDING', 'APPROVED'].includes(inv.status) && inv.dueDate && new Date(inv.dueDate).getTime() < Date.now();
+
+  return (
+    <>
+      <PageHeader
+        breadcrumb={[
+          { label: 'Budova', to: `/b/${buildingId}` },
+          { label: 'Prijaté faktúry', to: `/b/${buildingId}/prijate-faktury` },
+          { label: inv.invoiceNumber ?? 'Faktúra' },
+        ]}
+        title={inv.supplier?.name ?? 'Bez dodávateľa'}
+        subtitle={`${Number(inv.amount).toFixed(2)} ${inv.currency}${inv.invoiceNumber ? ` · FA č. ${inv.invoiceNumber}` : ''}`}
+        action={
+          <div style={{ display: 'flex', gap: 8 }}>
+            <StatusPill tone={overdue ? 'urgent' : status.tone}>{overdue ? 'Po splatnosti' : status.label}</StatusPill>
+            {inv.status !== 'PAID' && inv.status !== 'CANCELLED' && (
+              <Btn busy={busy} onClick={markPaid}>Označiť ako uhradené</Btn>
+            )}
+          </div>
+        }
+      />
+
+      <Section title="Detaily faktúry">
+        <dl className="ii-detail">
+          <Detail label="Dodávateľ">{inv.supplier ? `${inv.supplier.name}${inv.supplier.ico ? ` · IČO ${inv.supplier.ico}` : ''}` : '—'}</Detail>
+          <Detail label="Suma">{Number(inv.amount).toFixed(2)} {inv.currency}</Detail>
+          {inv.invoiceNumber && <Detail label="Číslo faktúry">{inv.invoiceNumber}</Detail>}
+          {inv.variableSymbol && <Detail label="VS">{inv.variableSymbol}</Detail>}
+          {inv.iban && <Detail label="IBAN dodávateľa"><code>{inv.iban}</code></Detail>}
+          {inv.issueDate && <Detail label="Vystavená">{new Date(inv.issueDate).toLocaleDateString('sk-SK')}</Detail>}
+          {inv.dueDate && <Detail label="Splatnosť" tone={overdue ? 'urgent' : 'normal'}>{new Date(inv.dueDate).toLocaleDateString('sk-SK')}</Detail>}
+          {inv.category && <Detail label="Kategória">{inv.category}</Detail>}
+          {inv.description && <Detail label="Popis">{inv.description}</Detail>}
+          {inv.paidAt && <Detail label="Uhradené">{new Date(inv.paidAt).toLocaleDateString('sk-SK')}</Detail>}
+        </dl>
+      </Section>
+
+      {inv.attachments.length > 0 && (
+        <Section title={`Prílohy (${inv.attachments.length})`}>
+          {inv.attachments.map((a) => (
+            <ListItem
+              key={a.id}
+              icon={a.mimeType.startsWith('image/') ? '🖼️' : '📄'}
+              title={a.filename}
+              subtitle={`${(a.sizeBytes / 1024).toFixed(0)} kB · ${a.mimeType} · ${new Date(a.uploadedAt).toLocaleString('sk-SK')}`}
+              onClick={() => viewAttachment(a.id)}
+            />
+          ))}
+        </Section>
+      )}
+
+      {inv.status !== 'PAID' && inv.status !== 'CANCELLED' && (
+        <Section title="Označiť ako uhradené">
+          <p className="inline-meta">
+            Po označení sa faktúra presunie do archívu zaplatených. Môžete pridať poznámku (napr. dátum úhrady, číslo bankového výpisu).
+          </p>
+          <Field label="Poznámka k úhrade" hint="Voliteľne">
+            <input value={paidNote} onChange={(e) => setPaidNote(e.target.value)} placeholder="napr. Tatra banka výpis 04/2026, 25.4.2026" />
+          </Field>
+          <Btn busy={busy} onClick={markPaid}>Označiť ako uhradené</Btn>
+        </Section>
+      )}
+
+      <Section title="Akcie">
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Btn variant="ghost" onClick={() => navigate(`/b/${buildingId}/prijate-faktury`)}>← Späť na zoznam</Btn>
+          <span style={{ flex: 1 }} />
+          <Btn variant="danger" onClick={deleteInvoice}>Vymazať faktúru</Btn>
+        </div>
+      </Section>
+    </>
+  );
+}
+
+function Detail({ label, children, tone }: { label: string; children: React.ReactNode; tone?: 'urgent' | 'normal' }) {
+  return (
+    <>
+      <dt>{label}</dt>
+      <dd className={tone === 'urgent' ? 'ii-detail-urgent' : ''}>{children}</dd>
+    </>
+  );
+}

@@ -17,6 +17,7 @@ import { NotFoundPage } from './components/ErrorBoundary';
 import { TermsPage, PrivacyPage, DpaPage } from './legal/LegalPages';
 import { StatusPage, ChangelogPage } from './legal/StatusAndChangelog';
 import { MarketingMenu } from './marketing/MarketingMenu';
+import { PhonePairUploadPage } from './shells/PhonePairUploadPage';
 
 const ROLE_LABEL: Record<string, string> = {
   OWNER: 'Vlastník',
@@ -72,6 +73,7 @@ export default function App() {
           <Route path="/aktivacia" element={<ActivatePage onLoggedIn={setMe} />} />
           <Route path="/aktivacia/:code" element={<ActivatePage onLoggedIn={setMe} />} />
           <Route path="/r/:code" element={<ActivatePage onLoggedIn={setMe} />} />
+          <Route path="/p/:token" element={<PhonePairUploadPage />} />
           <Route path="/obchodne-podmienky" element={<TermsPage />} />
           <Route path="/ochrana-udajov" element={<PrivacyPage />} />
           <Route path="/spracovanie-udajov" element={<DpaPage />} />
@@ -117,6 +119,7 @@ export default function App() {
         <Route path="/spracovanie-udajov" element={<DpaPage />} />
         <Route path="/status" element={<StatusPage />} />
         <Route path="/changelog" element={<ChangelogPage />} />
+        <Route path="/p/:token" element={<PhonePairUploadPage />} />
 
         {/* Root → smart redirect */}
         <Route path="/" element={<RootRedirect me={me} primary={primary} />} />
@@ -483,8 +486,40 @@ function Onboarding({ me, onDone }: { me: Me; onDone: (me: Me) => void }) {
   // Onboarding wizard vždy začína v Step 1 (vytvoriť novú budovu) — či už je to
   // prvý admin alebo existujúci správca pridávajúci ďalšiu budovu.
   // `building` (cieľ importu bytov) sa naplní až potom, čo wizard budovu vytvorí.
-  const [step, setStep] = useState<0 | 1 | 2 | 3>(1);
+  const [step, setStep] = useState<0 | 1 | 2 | 3 | 4>(1);
   const [building, setBuilding] = useState<any | null>(null);
+  const [billing, setBilling] = useState({
+    billingName: '',
+    billingIco: '',
+    billingDic: '',
+    billingVatId: '',
+    billingAddress: '',
+    billingIban: '',
+    billingBic: '',
+    billingBankName: '',
+    billingRegistry: '',
+    invoiceFooterNote: '',
+  });
+  const [billingBusy, setBillingBusy] = useState(false);
+  const [billingErr, setBillingErr] = useState<string | null>(null);
+
+  async function submitBilling(e: React.FormEvent) {
+    e.preventDefault();
+    if (!building) return;
+    setBillingBusy(true); setBillingErr(null);
+    try {
+      const updated = await api<any>(`/buildings/${building.id}/billing`, {
+        method: 'PATCH',
+        body: JSON.stringify(billing),
+      });
+      setBuilding(updated);
+      setStep(4);
+    } catch (e) {
+      setBillingErr((e as Error).message);
+    } finally {
+      setBillingBusy(false);
+    }
+  }
   const hasExisting = me.memberships.some((m) =>
     ['CHAIRMAN', 'MANAGER', 'ADMIN'].includes(m.role),
   );
@@ -731,7 +766,16 @@ function Onboarding({ me, onDone }: { me: Me; onDone: (me: Me) => void }) {
               ← Späť
             </button>
             <span className="spacer" />
-            <button onClick={() => setStep(3)}>Pokračovať →</button>
+            <button onClick={() => {
+              // Pre-fill billing from building basics keď chodí na ďalší krok
+              setBilling((b) => ({
+                ...b,
+                billingName: b.billingName || building.name,
+                billingIco: b.billingIco || (building.ico ?? ''),
+                billingAddress: b.billingAddress || `${building.address}, ${building.zip} ${building.city}`,
+              }));
+              setStep(3);
+            }}>Pokračovať →</button>
           </div>
           {err && (
             <p role="alert" style={{ color: 'var(--danger)', marginTop: '0.75rem' }}>
@@ -742,6 +786,91 @@ function Onboarding({ me, onDone }: { me: Me; onDone: (me: Me) => void }) {
       )}
 
       {step === 3 && building && (
+        <section className="card" style={{ maxWidth: 720, margin: '0 auto' }}>
+          <h2>Krok 3 — Fakturačné údaje</h2>
+          <p>
+            Tieto údaje sa automaticky použijú na každú vystavenú faktúru pre vlastníkov.
+            Môžete ich kedykoľvek upraviť v <strong>Nastaveniach budovy</strong>. Polia s hviezdičkou sú povinné.
+          </p>
+          <form onSubmit={submitBilling}>
+            <label>
+              Názov SVB / BD na faktúre <span style={{ color: 'var(--urgent)' }}>*</span>
+              <input required value={billing.billingName} onChange={(e) => setBilling({ ...billing, billingName: e.target.value })} placeholder={building.name} />
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+              <label>
+                IČO <span style={{ color: 'var(--urgent)' }}>*</span>
+                <input required value={billing.billingIco} onChange={(e) => setBilling({ ...billing, billingIco: e.target.value })} placeholder="12345678" />
+              </label>
+              <label>
+                DIČ
+                <input value={billing.billingDic} onChange={(e) => setBilling({ ...billing, billingDic: e.target.value })} placeholder="2023456789" />
+              </label>
+              <label>
+                IČ DPH (ak ste platca)
+                <input value={billing.billingVatId} onChange={(e) => setBilling({ ...billing, billingVatId: e.target.value })} placeholder="SK2023456789" />
+              </label>
+            </div>
+            <label>
+              Fakturačná adresa <span style={{ color: 'var(--urgent)' }}>*</span>
+              <input required value={billing.billingAddress} onChange={(e) => setBilling({ ...billing, billingAddress: e.target.value })} />
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.75rem' }}>
+              <label>
+                IBAN <span style={{ color: 'var(--urgent)' }}>*</span>
+                <input
+                  required
+                  value={billing.billingIban}
+                  onChange={(e) => setBilling({ ...billing, billingIban: e.target.value })}
+                  placeholder="SK00 0000 0000 0000 0000 0000"
+                  style={{ fontFamily: 'ui-monospace, monospace' }}
+                />
+              </label>
+              <label>
+                BIC / SWIFT
+                <input value={billing.billingBic} onChange={(e) => setBilling({ ...billing, billingBic: e.target.value })} placeholder="napr. TATRSKBX" />
+              </label>
+            </div>
+            <label>
+              Banka (názov)
+              <input value={billing.billingBankName} onChange={(e) => setBilling({ ...billing, billingBankName: e.target.value })} placeholder="napr. Tatra banka, a.s." />
+            </label>
+            <label>
+              Zápis v registri
+              <input value={billing.billingRegistry} onChange={(e) => setBilling({ ...billing, billingRegistry: e.target.value })} placeholder="napr. Okresný úrad Bratislava III, č. OPS-2010/123" />
+            </label>
+            <label>
+              Pätička faktúry
+              <textarea
+                rows={2}
+                value={billing.invoiceFooterNote}
+                onChange={(e) => setBilling({ ...billing, invoiceFooterNote: e.target.value })}
+                placeholder="napr. „SVB nie je platcom DPH. Ďakujeme za úhradu."
+              />
+            </label>
+            <hr />
+            <div className="row">
+              <button type="button" className="ghost" onClick={() => setStep(2)}>
+                ← Späť
+              </button>
+              <span className="spacer" />
+              <button type="button" className="secondary" onClick={() => setStep(4)}>
+                Vyplniť neskôr
+              </button>
+              <button type="submit" disabled={billingBusy}>
+                {billingBusy ? 'Ukladám…' : 'Uložiť a dokončiť →'}
+              </button>
+            </div>
+            {billingErr && (
+              <p role="alert" style={{ color: 'var(--danger)', marginTop: '0.75rem' }}>
+                {billingErr}
+              </p>
+            )}
+          </form>
+        </section>
+      )}
+
+      {step === 4 && building && (
         <section className="card" style={{ maxWidth: 640, margin: '0 auto' }}>
           <h2>Hotovo 🎉</h2>
           <p>
@@ -769,8 +898,8 @@ function Onboarding({ me, onDone }: { me: Me; onDone: (me: Me) => void }) {
   );
 }
 
-function WizardStepper({ step }: { step: 0 | 1 | 2 | 3 }) {
-  const steps = ['Registrácia', 'Budova', 'Byty', 'Hotovo'];
+function WizardStepper({ step }: { step: 0 | 1 | 2 | 3 | 4 }) {
+  const steps = ['Registrácia', 'Budova', 'Byty', 'Fakturácia', 'Hotovo'];
   return (
     <div className="row" style={{ justifyContent: 'center', marginBottom: '1.5rem' }}>
       {steps.map((label, i) => {
