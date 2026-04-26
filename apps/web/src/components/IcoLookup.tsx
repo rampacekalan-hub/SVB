@@ -18,10 +18,12 @@ interface Props {
   country?: 'SK' | 'CZ';
   onApply: (data: RegistryResult) => void;
   applied?: boolean;
+  /** Ak false, hint sa nespúšťa (napr. hodnota je už uložená a nezmenená). */
+  enabled?: boolean;
 }
 
-export function IcoLookupHint({ ico, country = 'SK', onApply, applied }: Props) {
-  const { state, result } = useIcoLookup(ico, country);
+export function IcoLookupHint({ ico, country = 'SK', onApply, applied, enabled = true }: Props) {
+  const { state, result } = useIcoLookup(ico, country, enabled);
 
   if (state === 'idle') return null;
 

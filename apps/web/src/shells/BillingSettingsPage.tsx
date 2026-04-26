@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { PageHeader } from '../components/PageHeader';
+import { Icon } from '../components/Icons';
 import { Btn } from '../components/Button';
 import { Field, Form, Row } from '../components/forms';
 import { SkeletonList } from '../components/Skeleton';
@@ -37,6 +38,8 @@ export function BillingSettingsPage({ buildingId }: { buildingId: string }) {
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [icoApplied, setIcoApplied] = useState(false);
+  // Edit mode — default false ak existujú údaje (view mode), true ak sú prázdne (force fill)
+  const [editMode, setEditMode] = useState(false);
 
   function applyRegistry(r: RegistryResult) {
     if (!b) return;
@@ -52,7 +55,11 @@ export function BillingSettingsPage({ buildingId }: { buildingId: string }) {
   }
 
   useEffect(() => {
-    api<Building>(`/buildings/${buildingId}`).then(setB).catch((e) => setErr((e as Error).message));
+    api<Building>(`/buildings/${buildingId}`).then((data) => {
+      setB(data);
+      // Ak ešte nemá vyplnené core polia (názov + IČO), prepneme do edit mode automaticky
+      if (!data.billingName || !data.billingIco) setEditMode(true);
+    }).catch((e) => setErr((e as Error).message));
   }, [buildingId]);
 
   function set(k: keyof Building, v: string) {
@@ -84,6 +91,8 @@ export function BillingSettingsPage({ buildingId }: { buildingId: string }) {
       });
       setB(updated);
       setSaved(true);
+      setEditMode(false);
+      setIcoApplied(false);
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -108,7 +117,14 @@ export function BillingSettingsPage({ buildingId }: { buildingId: string }) {
       <PageHeader
         breadcrumb={[{ label: 'Budova', to: `/b/${buildingId}` }, { label: 'Fakturačné údaje' }]}
         title="Fakturačné údaje budovy"
-        subtitle="Tieto údaje sa automaticky vyplnia na každú vystavenú faktúru. Upravujete ich kedykoľvek."
+        subtitle="Tieto údaje sa automaticky vyplnia na každú vystavenú faktúru."
+        action={
+          !editMode && b.billingName ? (
+            <Btn variant="ghost" iconLeft={<Icon name="edit" size={16} />} onClick={() => setEditMode(true)}>
+              Upraviť
+            </Btn>
+          ) : undefined
+        }
       />
 
       {saved && (
@@ -117,14 +133,67 @@ export function BillingSettingsPage({ buildingId }: { buildingId: string }) {
         </div>
       )}
 
+      {/* VIEW MODE — kompaktný read-only prehľad */}
+      {!editMode && (
+        <div className="billing-view">
+          <div className="billing-view-grid">
+            <div className="billing-view-row">
+              <dt>Názov</dt><dd><strong>{b.billingName ?? '—'}</strong></dd>
+            </div>
+            <div className="billing-view-row">
+              <dt>IČO</dt><dd>{b.billingIco ?? '—'}</dd>
+            </div>
+            <div className="billing-view-row">
+              <dt>DIČ</dt><dd>{b.billingDic ?? '—'}</dd>
+            </div>
+            <div className="billing-view-row">
+              <dt>IČ DPH</dt><dd>{b.billingVatId ?? '—'}</dd>
+            </div>
+            <div className="billing-view-row billing-view-row-wide">
+              <dt>Adresa</dt><dd>{b.billingAddress ?? '—'}</dd>
+            </div>
+            <div className="billing-view-row">
+              <dt>IBAN</dt><dd className="mono">{b.billingIban ?? '—'}</dd>
+            </div>
+            <div className="billing-view-row">
+              <dt>BIC</dt><dd className="mono">{b.billingBic ?? '—'}</dd>
+            </div>
+            <div className="billing-view-row">
+              <dt>Banka</dt><dd>{b.billingBankName ?? '—'}</dd>
+            </div>
+            <div className="billing-view-row billing-view-row-wide">
+              <dt>Zápis v registri</dt><dd>{b.billingRegistry ?? '—'}</dd>
+            </div>
+            {b.invoiceFooterNote && (
+              <div className="billing-view-row billing-view-row-wide">
+                <dt>Pätička FA</dt><dd className="muted">{b.invoiceFooterNote}</dd>
+              </div>
+            )}
+          </div>
+          <p className="inline-meta" style={{ marginTop: '1rem' }}>
+            Pre úpravu kliknite <strong>Upraviť</strong> hore vpravo. Pri zmene IČO sa údaje automaticky doplnia z RPO / ARES.
+          </p>
+        </div>
+      )}
+
+      {/* EDIT MODE — formulár */}
+      {editMode && (
+
       <Form
         title=""
         onSubmit={submit}
         error={err}
         actions={
-          <Btn type="submit" busy={busy}>
-            {busy ? 'Ukladám…' : 'Uložiť zmeny'}
-          </Btn>
+          <>
+            <Btn type="submit" busy={busy}>
+              {busy ? 'Ukladám…' : 'Uložiť zmeny'}
+            </Btn>
+            {b.billingName && (
+              <Btn variant="ghost" onClick={() => { setEditMode(false); setSaved(false); }}>
+                Zrušiť úpravu
+              </Btn>
+            )}
+          </>
         }
       >
         <Field
@@ -172,6 +241,7 @@ export function BillingSettingsPage({ buildingId }: { buildingId: string }) {
               country="SK"
               onApply={applyRegistry}
               applied={icoApplied}
+              enabled={editMode}
             />
           </Field>
           <Field label="DIČ">
@@ -255,6 +325,7 @@ export function BillingSettingsPage({ buildingId }: { buildingId: string }) {
           />
         </Field>
       </Form>
+      )}
     </>
   );
 }

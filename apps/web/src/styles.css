@@ -4033,6 +4033,89 @@ html[data-theme='dark'] .mk-noise::before,
 .cns-more:hover { background: var(--brand-soft); }
 
 /* ============================================================
+   BILLING VIEW (read-only kompaktný prehľad)
+   ============================================================ */
+
+.billing-view {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.25rem 1.5rem;
+}
+.billing-view-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.625rem 2rem;
+  margin: 0;
+}
+@media (max-width: 720px) {
+  .billing-view-grid { grid-template-columns: 1fr; gap: 0.5rem; }
+}
+.billing-view-row {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  align-items: baseline;
+}
+.billing-view-row:last-child { border-bottom: none; }
+.billing-view-row-wide { grid-column: 1 / -1; }
+.billing-view-row dt {
+  color: var(--fg-subtle);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+.billing-view-row dd {
+  color: var(--fg);
+  margin: 0;
+  font-size: 0.9375rem;
+  word-break: break-word;
+}
+.billing-view-row dd.mono {
+  font-family: ui-monospace, monospace;
+  font-size: 0.875rem;
+  letter-spacing: 0.01em;
+}
+.billing-view-row dd.muted { color: var(--fg-muted); font-style: italic; }
+.billing-view-row dd strong { font-weight: 700; }
+
+/* ============================================================
+   KOMPAKTNEJŠÍ FORMULÁROVÝ LAYOUT (fakturačné pages)
+   ============================================================ */
+
+/* Tighter Form spacing keď je v finančnej sekcii */
+.dp-form-row { margin-bottom: 0.625rem !important; }
+.dp-form-row > label {
+  font-size: 0.8125rem;
+  margin-bottom: 0.25rem;
+  color: var(--fg-subtle);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.dp-form-row input,
+.dp-form-row select,
+.dp-form-row textarea {
+  min-height: 38px;
+  padding: 0.5rem 0.625rem;
+  font-size: 0.9375rem;
+}
+.dp-form-row .hint {
+  font-size: 0.75rem;
+  color: var(--fg-subtle);
+  margin-top: 0.25rem;
+}
+
+/* Section + form padding zmenšené */
+.dp-section { padding: 1.25rem 1.5rem; margin-bottom: 1rem; }
+.dp-section-head { margin-bottom: 0.875rem; }
+.dp-section-title { font-size: 1.0625rem; }
+
+/* ============================================================
    ICO LOOKUP HINT — RPO / ARES auto-fill widget
    ============================================================ */
 
