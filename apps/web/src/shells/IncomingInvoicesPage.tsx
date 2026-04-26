@@ -209,8 +209,15 @@ export function NewIncomingInvoicePage({ buildingId }: { buildingId: string }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  // OCR výsledok
-  const [ocrPreview, setOcrPreview] = useState<{ extraction: any; suggestedSupplier: Supplier | null; file: File } | null>(null);
+  // OCR výsledok + supplier flow
+  const [ocrPreview, setOcrPreview] = useState<{
+    extraction: any;
+    existingSupplier: Supplier | null;
+    registryData: any;
+    drift: Array<{ field: string; db: string; registry: string }> | null;
+    file: File;
+  } | null>(null);
+  const [creatingSupplier, setCreatingSupplier] = useState(false);
 
   // Manuálny formulár (pre-fill z OCR alebo prázdny)
   const [form, setForm] = useState({
@@ -247,23 +254,58 @@ export function NewIncomingInvoicePage({ buildingId }: { buildingId: string }) {
       setOcrPreview({ ...data, file });
       setPendingAttachment(file);
 
-      // Pre-fill form z OCR výsledku
+      // Pre-fill form z OCR + register dát
       const ex = data.extraction;
+      const reg = data.registryData;
       setForm((f) => ({
         ...f,
-        supplierId: data.suggestedSupplier?.id ?? f.supplierId,
+        supplierId: data.existingSupplier?.id ?? f.supplierId,
         invoiceNumber: ex.invoiceNumber ?? f.invoiceNumber,
         variableSymbol: ex.variableSymbol ?? f.variableSymbol,
         issueDate: ex.issueDate ? ex.issueDate.slice(0, 10) : f.issueDate,
         dueDate: ex.dueDate ? ex.dueDate.slice(0, 10) : f.dueDate,
         amount: ex.amount ?? f.amount,
-        iban: ex.iban ?? f.iban,
+        iban: ex.iban ?? data.existingSupplier?.iban ?? reg?.iban ?? f.iban,
       }));
       setMode('manual');
     } catch (e) {
       setErr('OCR zlyhalo: ' + (e as Error).message);
     } finally {
       setBusy(false);
+    }
+  }
+
+  /**
+   * Vytvorí dodávateľa z údajov v RPO/ORSR a priradí ho k formuláru.
+   * Volá sa keď IČO nebolo v lokálnej DB ale registry ho našiel.
+   */
+  async function createSupplierFromRegistry() {
+    if (!ocrPreview?.registryData?.found) return;
+    setCreatingSupplier(true);
+    try {
+      const r = ocrPreview.registryData;
+      const newSupplier = await api<Supplier>('/suppliers', {
+        method: 'POST',
+        body: JSON.stringify({
+          buildingId,
+          name: r.name,
+          ico: r.ico,
+          dic: r.dic,
+          vatId: r.vatId,
+          iban: ocrPreview.extraction.iban,
+          address: r.address,
+        }),
+      });
+      // Refresh list + select v formulári
+      const updatedList = await api<Supplier[]>(`/suppliers/building/${buildingId}`);
+      setSuppliers(updatedList);
+      setForm((f) => ({ ...f, supplierId: newSupplier.id }));
+      // Update ocrPreview existingSupplier
+      setOcrPreview({ ...ocrPreview, existingSupplier: newSupplier, registryData: null });
+    } catch (e) {
+      setErr('Nepodarilo sa vytvoriť dodávateľa: ' + (e as Error).message);
+    } finally {
+      setCreatingSupplier(false);
     }
   }
 
@@ -373,25 +415,97 @@ export function NewIncomingInvoicePage({ buildingId }: { buildingId: string }) {
             </div>
           )}
           {ocrPreview && (
-            <div className="ii-ocr-summary">
-              <div className="ii-ocr-head">
-                <strong>OCR rozpoznal</strong>
-                <span className="ii-ocr-conf">presnosť {(ocrPreview.extraction.confidence * 100).toFixed(0)} %</span>
+            <>
+              <div className="ii-ocr-summary">
+                <div className="ii-ocr-head">
+                  <strong>Rozpoznané údaje z faktúry</strong>
+                  <span className="ii-ocr-conf">presnosť {(ocrPreview.extraction.confidence * 100).toFixed(0)} %</span>
+                </div>
+                <div className="ii-ocr-fields">
+                  {ocrPreview.extraction.amount && <span className="ii-ocr-pill">Suma {ocrPreview.extraction.amount} €</span>}
+                  {ocrPreview.extraction.iban && <span className="ii-ocr-pill">IBAN {ocrPreview.extraction.iban}</span>}
+                  {ocrPreview.extraction.ico && <span className="ii-ocr-pill">IČO {ocrPreview.extraction.ico}</span>}
+                  {ocrPreview.extraction.variableSymbol && <span className="ii-ocr-pill">VS {ocrPreview.extraction.variableSymbol}</span>}
+                  {ocrPreview.extraction.dueDate && <span className="ii-ocr-pill">Splatnosť {ocrPreview.extraction.dueDate.slice(0, 10)}</span>}
+                </div>
               </div>
-              <div className="ii-ocr-fields">
-                {ocrPreview.suggestedSupplier && (
-                  <span className="ii-ocr-pill ii-ocr-pill-ok">
-                    ✓ Dodávateľ rozpoznaný: <strong>{ocrPreview.suggestedSupplier.name}</strong>
-                  </span>
-                )}
-                {ocrPreview.extraction.amount && <span className="ii-ocr-pill">Suma {ocrPreview.extraction.amount} €</span>}
-                {ocrPreview.extraction.iban && <span className="ii-ocr-pill">IBAN {ocrPreview.extraction.iban}</span>}
-                {ocrPreview.extraction.ico && <span className="ii-ocr-pill">IČO {ocrPreview.extraction.ico}</span>}
-                {ocrPreview.extraction.variableSymbol && <span className="ii-ocr-pill">VS {ocrPreview.extraction.variableSymbol}</span>}
-                {ocrPreview.extraction.dueDate && <span className="ii-ocr-pill">Splatnosť {ocrPreview.extraction.dueDate.slice(0, 10)}</span>}
-              </div>
+
+              {/* Supplier flow — 3 stavy */}
+              {ocrPreview.existingSupplier && !ocrPreview.drift && (
+                <div className="ii-supplier-card ii-supplier-ok">
+                  <div className="ii-supplier-head">
+                    <span className="ii-supplier-icon">✓</span>
+                    <div>
+                      <strong>Dodávateľ rozpoznaný v databáze</strong>
+                      <div className="ii-supplier-name">{ocrPreview.existingSupplier.name}{ocrPreview.existingSupplier.ico ? ` · IČO ${ocrPreview.existingSupplier.ico}` : ''}</div>
+                    </div>
+                  </div>
+                  <div className="ii-supplier-actions">Údaje sedia s registrom — nie je potrebné nič upravovať.</div>
+                </div>
+              )}
+
+              {ocrPreview.existingSupplier && ocrPreview.drift && ocrPreview.drift.length > 0 && (
+                <div className="ii-supplier-card ii-supplier-warn">
+                  <div className="ii-supplier-head">
+                    <span className="ii-supplier-icon">⚠️</span>
+                    <div>
+                      <strong>Údaje dodávateľa sa zmenili v RPO</strong>
+                      <div className="ii-supplier-name">{ocrPreview.existingSupplier.name}</div>
+                    </div>
+                  </div>
+                  <div className="ii-supplier-drift">
+                    {ocrPreview.drift.map((d, i) => (
+                      <div key={i} className="ii-drift-row">
+                        <span className="ii-drift-field">{d.field}:</span>
+                        <span className="ii-drift-old">vaša DB: {d.db}</span>
+                        <span className="ii-drift-arrow">→</span>
+                        <span className="ii-drift-new">RPO: {d.registry}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="ii-supplier-note">
+                    Pre teraz použijem údaje z DB. Upravte dodávateľa manuálne v <strong>Dodávatelia → Upraviť</strong> ak chcete sync.
+                  </p>
+                </div>
+              )}
+
+              {!ocrPreview.existingSupplier && ocrPreview.registryData?.found && (
+                <div className="ii-supplier-card ii-supplier-info">
+                  <div className="ii-supplier-head">
+                    <span className="ii-supplier-icon">🆕</span>
+                    <div>
+                      <strong>Nový dodávateľ — chcete ho pridať do databázy?</strong>
+                      <div className="ii-supplier-name">{ocrPreview.registryData.name}{ocrPreview.registryData.ico ? ` · IČO ${ocrPreview.registryData.ico}` : ''}</div>
+                    </div>
+                  </div>
+                  <div className="ii-supplier-fields">
+                    {ocrPreview.registryData.dic && <span className="ii-ocr-pill">DIČ {ocrPreview.registryData.dic}</span>}
+                    {ocrPreview.registryData.vatId && <span className="ii-ocr-pill">IČ DPH {ocrPreview.registryData.vatId}</span>}
+                    {ocrPreview.registryData.address && <span className="ii-ocr-pill">{ocrPreview.registryData.address}</span>}
+                  </div>
+                  <div className="ii-supplier-actions">
+                    <Btn busy={creatingSupplier} onClick={createSupplierFromRegistry}>
+                      ➕ Pridať dodávateľa s týmito údajmi
+                    </Btn>
+                    <Btn variant="ghost" onClick={() => setOcrPreview({ ...ocrPreview, registryData: null })}>
+                      Preskočiť — uložím faktúru bez dodávateľa
+                    </Btn>
+                  </div>
+                </div>
+              )}
+
+              {!ocrPreview.existingSupplier && !ocrPreview.registryData?.found && ocrPreview.extraction.ico && (
+                <div className="ii-supplier-card ii-supplier-warn">
+                  <span className="ii-supplier-icon">⚠️</span>
+                  <div>
+                    <strong>IČO {ocrPreview.extraction.ico} sa nenašlo</strong>
+                    <div className="ii-supplier-note">Ani v DB, ani v RPO/ORSR. Skontrolujte IČO alebo doplňte dodávateľa ručne v <strong>Dodávatelia</strong>.</div>
+                  </div>
+                </div>
+              )}
+
               <p className="ii-ocr-note">Skontrolujte alebo opravte hodnoty v formulári nižšie pred uložením.</p>
-            </div>
+            </>
           )}
 
           <Form

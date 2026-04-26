@@ -4,9 +4,10 @@ import { IncomingInvoicesService } from './incoming-invoices.service';
 import { OcrService } from './ocr.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SuppliersModule } from '../suppliers/suppliers.module';
+import { ExternalRegistryModule } from '../external-registry/external-registry.module';
 
 @Module({
-  imports: [PrismaModule, SuppliersModule],
+  imports: [PrismaModule, SuppliersModule, ExternalRegistryModule],
   controllers: [IncomingInvoicesController],
   providers: [IncomingInvoicesService, OcrService],
   exports: [IncomingInvoicesService],

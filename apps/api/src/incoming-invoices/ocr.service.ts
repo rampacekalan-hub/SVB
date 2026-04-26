@@ -35,6 +35,37 @@ export class OcrService {
   private readonly log = new Logger(OcrService.name);
 
   /**
+   * Univerzálna metóda — detekuje typ súboru a deleguje:
+   *   PDF → pdf-parse (extrahuje text PRIAMO, žiadny OCR, vysoká presnosť)
+   *   Image → Tesseract.js OCR (pomalšie, lower confidence)
+   *
+   * Vracia extrakt s rovnakou štruktúrou ako predtým.
+   */
+  async extract(buffer: Buffer, mimeType?: string): Promise<OcrExtraction> {
+    const isPdf = mimeType === 'application/pdf' || (buffer.length > 4 && buffer.slice(0, 4).toString() === '%PDF');
+    if (isPdf) {
+      return this.extractFromPdf(buffer);
+    }
+    return this.extractFromImage(buffer);
+  }
+
+  /** PDF text extraction — vysoká presnosť, žiadny OCR. */
+  async extractFromPdf(buffer: Buffer): Promise<OcrExtraction> {
+    try {
+      // pdf-parse má rôzne export tvary v rôznych verziách — bezpečne probni oboje
+      const mod: any = await import('pdf-parse');
+      const pdfParse = mod.default ?? mod;
+      const data: any = await pdfParse(buffer);
+      const text = data?.text ?? '';
+      this.log.log(`PDF extrahovaný (${text.length} znakov)`);
+      return this.parse(text, 0.95); // PDF text je vždy presný
+    } catch (err) {
+      this.log.warn(`PDF parse zlyhal, fallback na OCR: ${(err as Error).message}`);
+      return this.extractFromImage(buffer);
+    }
+  }
+
+  /**
    * Spustí OCR na image bufferi a parse-ne typické polia.
    * Tesseract import je dynamický — knižnica je veľká (35 MB), nezaťažuje boot.
    */

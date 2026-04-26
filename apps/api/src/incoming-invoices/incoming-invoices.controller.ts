@@ -10,6 +10,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { IncomingInvoicesService } from './incoming-invoices.service';
 import { OcrService } from './ocr.service';
 import { SuppliersService } from '../suppliers/suppliers.service';
+import { ExternalRegistryService } from '../external-registry/external-registry.service';
 
 @ApiTags('incoming-invoices')
 @ApiBearerAuth()
@@ -20,6 +21,7 @@ export class IncomingInvoicesController {
     private readonly svc: IncomingInvoicesService,
     private readonly ocr: OcrService,
     private readonly suppliers: SuppliersService,
+    private readonly registry: ExternalRegistryService,
   ) {}
 
   @Get('building/:buildingId')
@@ -108,11 +110,54 @@ export class IncomingInvoicesController {
     @UploadedFile() file: Express.Multer.File,
     @Body('buildingId') buildingId: string,
   ) {
-    const extraction = await this.ocr.extractFromImage(file.buffer);
-    let suggestedSupplier = null;
+    // Univerzálne extract (PDF text alebo OCR podľa typu súboru)
+    const extraction = await this.ocr.extract(file.buffer, file.mimetype);
+
+    // Lookup dodávateľa podľa IČO — najprv v lokálnej DB
+    let existingSupplier = null;
     if (extraction.ico) {
-      suggestedSupplier = await this.suppliers.findByIco(buildingId, extraction.ico);
+      existingSupplier = await this.suppliers.findByIco(buildingId, extraction.ico);
     }
-    return { extraction, suggestedSupplier };
+
+    // Paralelne — fetch z RPO/ORSR ak máme IČO
+    let registryData = null;
+    if (extraction.ico) {
+      try {
+        registryData = await this.registry.lookup(extraction.ico, 'SK');
+      } catch {
+        // ignore — registry môže byť dočasne nedostupný
+      }
+    }
+
+    // Detekcia rozdielov medzi DB a registrom (ak existujúci dodávateľ + máme registry data)
+    const drift = this.detectSupplierDrift(existingSupplier, registryData);
+
+    return {
+      extraction,
+      existingSupplier,
+      registryData,
+      drift,
+      suggestedSupplier: existingSupplier ?? (registryData?.found ? registryData : null),
+    };
+  }
+
+  /**
+   * Porovná údaje z DB so súčasnými údajmi v RPO/ORSR.
+   * Vráti pole rozdielov pre UI alert ("DIČ sa zmenil v RPO oproti vašej DB").
+   */
+  private detectSupplierDrift(existing: any, registry: any): Array<{ field: string; db: string; registry: string }> | null {
+    if (!existing || !registry?.found) return null;
+    const diffs: Array<{ field: string; db: string; registry: string }> = [];
+    const compare = (field: string, dbVal?: string | null, regVal?: string | null) => {
+      if (!regVal) return;
+      const a = (dbVal ?? '').trim();
+      const b = (regVal ?? '').trim();
+      if (a && b && a !== b) diffs.push({ field, db: a, registry: b });
+    };
+    compare('Názov', existing.name, registry.name);
+    compare('DIČ', existing.dic, registry.dic);
+    compare('IČ DPH', existing.vatId, registry.vatId);
+    compare('Adresa', existing.address, registry.address);
+    return diffs.length > 0 ? diffs : null;
   }
 }
