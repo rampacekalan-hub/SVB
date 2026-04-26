@@ -4602,6 +4602,85 @@ html[data-theme='dark'] .mk-noise::before,
 }
 .ii-pair-warn a { color: #b45309; font-weight: 700; }
 
+/* Phone pairing — waiting and success states */
+.ii-pair-waiting {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin: 1.5rem 0;
+  padding: 1rem 1.25rem;
+  background: color-mix(in srgb, var(--brand) 8%, white);
+  border: 1px solid color-mix(in srgb, var(--brand) 30%, transparent);
+  border-radius: 10px;
+  text-align: left;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.ii-pair-waiting strong {
+  display: block;
+  color: var(--brand);
+  margin-bottom: 0.25rem;
+}
+.ii-pair-waiting p {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--fg-muted);
+}
+.ii-pair-spinner {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--brand-soft);
+  border-top-color: var(--brand);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.ii-pair-success {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin: 1.5rem 0;
+  padding: 1rem 1.25rem;
+  background: color-mix(in srgb, var(--ok-600) 12%, white);
+  border: 1px solid var(--ok-600);
+  border-radius: 10px;
+  text-align: left;
+  animation: slideIn 0.4s ease-out;
+}
+.ii-pair-success-icon {
+  flex-shrink: 0;
+  font-size: 1.5rem;
+  color: var(--ok-600);
+}
+.ii-pair-success strong {
+  display: block;
+  color: var(--ok-600);
+  margin-bottom: 0.25rem;
+}
+.ii-pair-success p {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--fg-muted);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Attachment pill */
 .ii-attachment-pill {
   display: inline-flex;

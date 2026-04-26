@@ -795,11 +795,21 @@ function PhonePairWidget({ buildingId, onPhotoReceived, onCancel }: {
         )}
 
         {keysReceived.length > 0 ? (
-          <div className="dp-alert-ok">
-            ✓ Foto prijatá ({keysReceived.length}). Pokračujem na formulár…
+          <div className="ii-pair-success">
+            <span className="ii-pair-success-icon">✓</span>
+            <div>
+              <strong>Foto prijatá!</strong>
+              <p>Spracovávam OCR a prepínám na formulár…</p>
+            </div>
           </div>
         ) : (
-          <p className="inline-meta">Čakám na foto z mobilu…</p>
+          <div className="ii-pair-waiting">
+            <span className="ii-pair-spinner" />
+            <div>
+              <strong>Čakám na foto z mobilu…</strong>
+              <p>Naskenuj QR kód v mobilnej aplikácii a odfot faktúru.</p>
+            </div>
+          </div>
         )}
 
         <Btn variant="ghost" onClick={onCancel}>← Zrušiť</Btn>
