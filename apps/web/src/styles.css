@@ -4355,6 +4355,17 @@ html[data-theme='dark'] .mk-noise::before,
   color: var(--ok-600);
 }
 .ii-ocr-note { margin: 0.625rem 0 0; font-size: 0.8125rem; color: var(--fg-muted); }
+.ii-ocr-desc {
+  margin-top: 0.625rem;
+  padding: 0.5rem 0.75rem;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: var(--fg);
+  line-height: 1.5;
+}
+.ii-ocr-desc strong { color: var(--brand); }
 
 /* 2-stĺpec: form + PDF preview */
 .ii-form-with-preview {

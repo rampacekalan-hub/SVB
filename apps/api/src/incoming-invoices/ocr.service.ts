@@ -28,6 +28,7 @@ export interface OcrExtraction {
   dueDate?: string; // ISO
   issueDate?: string;
   invoiceNumber?: string;
+  description?: string;
 }
 
 @Injectable()
@@ -194,6 +195,38 @@ export class OcrService {
       invoiceNumber = variableSymbol;
     }
 
+    // Popis predmetu faktúry — heuristika:
+    //   1. "Fakturujeme Vám za ..." / "Fakturujeme za ..." (najčastejší formát)
+    //   2. "Predmet faktúry: ..." / "Predmet:"
+    //   3. Riadok medzi tabuľkou položiek a súčtom (typicky obsahuje "ks")
+    let description: string | undefined;
+    const descPatterns = [
+      // "Fakturujeme Vám za prenájom kancelárskych priestorov na adrese ... za obdobie apríl 2026."
+      /Fakturujeme(?:\s+V[áa]m)?\s+za\s+([^.\n]+?)(?:\s+(?:Po(?:Z|z)n[áa]mka|Celkov[áa]\s+sum[ay]|Spolu|Suma|Cena\s+celkom|N[áa]zov\s+a\s+popis)|[\.\n])/i,
+      // "Predmet faktúry: ..." / "Predmet: ..."
+      /Predmet(?:\s+fakt[uú]ry)?[\s:]+([^\n]+?)(?:\s+(?:Po(?:z)n[áa]mka|Celkov[áa]|Spolu|Cena|Suma|$))/i,
+      // "Fakturácia za ..." / "Faktúra za ..."
+      /Fakt[uú]r(?:[au]|[áa]cia)\s+za\s+([^\n]+?)(?:\s+(?:N[áa]zov|Po(?:z)n[áa]mka|Celkov[áa]|Spolu|Cena|$))/i,
+    ];
+    for (const re of descPatterns) {
+      const m = text.match(re);
+      if (m) {
+        const candidate = m[1].trim().replace(/\s+/g, ' ');
+        if (candidate.length >= 5 && candidate.length <= 250) {
+          description = candidate;
+          break;
+        }
+      }
+    }
+    // Fallback: ak neexistuje, skús extrahovať prvú „položku" z tabuľky
+    if (!description) {
+      // Hľadaj riadok obsahujúci "ks" alebo "kus" + číslo (typický formát položky)
+      const itemMatch = text.match(/(?:N[áa]zov\s+a\s+popis\s+polo[žz]ky|Polo[žz]ka|Popis)[^\n]*\n?\s*([^\n]{20,200}?)(?:\s+\d+\s+(?:ks|kus))/i);
+      if (itemMatch) {
+        description = itemMatch[1].trim().replace(/\s+/g, ' ');
+      }
+    }
+
     return {
       rawText,
       confidence,
@@ -205,6 +238,7 @@ export class OcrService {
       dueDate,
       issueDate,
       invoiceNumber,
+      description,
     };
   }
 

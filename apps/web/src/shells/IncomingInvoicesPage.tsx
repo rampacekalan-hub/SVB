@@ -257,6 +257,7 @@ export function NewIncomingInvoicePage({ buildingId }: { buildingId: string }) {
         dueDate: ex.dueDate ? ex.dueDate.slice(0, 10) : f.dueDate,
         amount: ex.amount ?? f.amount,
         iban: ex.iban ?? data.existingSupplier?.iban ?? reg?.iban ?? f.iban,
+        description: ex.description ?? f.description,
       }));
       setMode('manual');
     } catch (e) {
@@ -419,7 +420,13 @@ export function NewIncomingInvoicePage({ buildingId }: { buildingId: string }) {
                   {ocrPreview.extraction.ico && <span className="ii-ocr-pill">IČO {ocrPreview.extraction.ico}</span>}
                   {ocrPreview.extraction.variableSymbol && <span className="ii-ocr-pill">VS {ocrPreview.extraction.variableSymbol}</span>}
                   {ocrPreview.extraction.dueDate && <span className="ii-ocr-pill">Splatnosť {ocrPreview.extraction.dueDate.slice(0, 10)}</span>}
+                  {ocrPreview.extraction.invoiceNumber && <span className="ii-ocr-pill">FA č. {ocrPreview.extraction.invoiceNumber}</span>}
                 </div>
+                {ocrPreview.extraction.description && (
+                  <div className="ii-ocr-desc">
+                    <strong>Predmet:</strong> {ocrPreview.extraction.description}
+                  </div>
+                )}
               </div>
 
               {/* Supplier flow — 3 stavy */}
