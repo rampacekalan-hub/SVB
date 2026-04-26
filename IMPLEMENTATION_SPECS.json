@@ -1,0 +1,546 @@
+{
+  "project": "Floory Onboarding System",
+  "version": "2.0",
+  "date": "2026-04-26",
+  "status": "READY FOR DEVELOPMENT",
+  "phases": [
+    {
+      "phase": 1,
+      "name": "Critical Fixes",
+      "duration": "2 weeks",
+      "priority": "🔴 HIGH",
+      "tasks": [
+        {
+          "id": "P1.1",
+          "title": "Apartment Editor — Step 2",
+          "description": "Add inline table with edit/delete/add capabilities after apartment import",
+          "components": [
+            "ApartmentTable.tsx",
+            "ApartmentEditor.tsx",
+            "ApartmentDeleteConfirm.tsx"
+          ],
+          "backend": [
+            "PATCH /buildings/:id/apartments/:aptId",
+            "DELETE /buildings/:id/apartments/:aptId",
+            "POST /buildings/:id/apartments"
+          ],
+          "estimatedHours": 20,
+          "dependencies": [],
+          "acceptance": [
+            "Users can edit apartment data after import",
+            "Users can delete apartments",
+            "Users can add apartments manually",
+            "unitNumber is unique within building",
+            "Table fits on desktop and mobile"
+          ]
+        },
+        {
+          "id": "P1.2",
+          "title": "IBAN Validator & Formatter — Step 3",
+          "description": "Real-time IBAN formatting (SK00 XXXX XXXX…) and validation (MOD97)",
+          "components": [
+            "IbanInput.tsx",
+            "apps/api/src/utilities/iban.service.ts"
+          ],
+          "backend": [
+            "validateIban(string)",
+            "formatIban(string)",
+            "lookupBicByIban(string)"
+          ],
+          "estimatedHours": 16,
+          "dependencies": [],
+          "acceptance": [
+            "IBAN auto-formats with spaces",
+            "Invalid IBAN shows error message",
+            "MOD97 validation works",
+            "Error message is clear",
+            "Works with SK and CZ IBANs"
+          ]
+        },
+        {
+          "id": "P1.3",
+          "title": "Activation Codes Wizard — Step 4",
+          "description": "Convert Step 4 from static to multi-step wizard with PDF generation and delivery options",
+          "components": [
+            "ActivationCodesWizard.tsx",
+            "ActivationCodesStep1-6.tsx",
+            "ActivationCodesPdfPreview.tsx"
+          ],
+          "backend": [
+            "POST /buildings/:id/activation-codes/generate",
+            "GET /buildings/:id/apartments?include=codes",
+            "POST /buildings/:id/activation-codes/send-email",
+            "POST /buildings/:id/activation-codes/send-sms"
+          ],
+          "estimatedHours": 24,
+          "dependencies": [],
+          "acceptance": [
+            "Wizard shows all 6 steps",
+            "User can navigate prev/next",
+            "PDF generates with loading state",
+            "PDF preview shows inline",
+            "Email delivery option available",
+            "User sees success message after completion"
+          ]
+        },
+        {
+          "id": "P1.4",
+          "title": "Address Lookup — Step 1",
+          "description": "Autocomplete address field with real-time lookup from OpenStreetMap Nominatim",
+          "components": [
+            "AddressInput.tsx",
+            "apps/api/src/utilities/address.service.ts"
+          ],
+          "backend": [
+            "GET /api/address/lookup?query=X&country=SK"
+          ],
+          "estimatedHours": 18,
+          "dependencies": [],
+          "apis": [
+            "OpenStreetMap Nominatim (free)",
+            "MapBox Geocoding (optional fallback)"
+          ],
+          "acceptance": [
+            "Autocomplete dropdown appears on input",
+            "Results are formatted and normalized",
+            "Address is parsed to city, zip, street",
+            "Debounce prevents spam requests",
+            "Results cached to reduce API calls",
+            "Works offline with cache"
+          ]
+        }
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "UX Enhancements",
+      "duration": "1 week",
+      "priority": "🟠 MEDIUM-HIGH",
+      "tasks": [
+        {
+          "id": "P2.1",
+          "title": "BIC Auto-lookup",
+          "description": "Auto-fill BIC code when IBAN is entered, with bank name display",
+          "components": [
+            "IbanInput.tsx (upgrade)"
+          ],
+          "backend": [
+            "GET /api/bic/lookup?iban=SK..."
+          ],
+          "estimatedHours": 8,
+          "dependencies": ["P1.2"],
+          "acceptance": [
+            "BIC auto-fills on IBAN blur",
+            "Bank name displays correctly",
+            "Works for SK and CZ banks",
+            "Graceful fallback if lookup fails"
+          ]
+        },
+        {
+          "id": "P2.2",
+          "title": "Building Settings Page",
+          "description": "New admin page to edit building data with role-based access",
+          "components": [
+            "BuildingSettingsPage.tsx",
+            "BuildingGeneralTab.tsx",
+            "BuildingBillingTab.tsx",
+            "BuildingEmailTab.tsx",
+            "AuditLogTable.tsx"
+          ],
+          "backend": [
+            "PATCH /buildings/:id",
+            "PATCH /buildings/:id/billing",
+            "PATCH /buildings/:id/email-templates",
+            "GET /buildings/:id/audit"
+          ],
+          "estimatedHours": 20,
+          "dependencies": [],
+          "acceptance": [
+            "Only MANAGER can edit billing tab",
+            "CHAIRMAN can edit general and email",
+            "Audit log shows all changes",
+            "Authorization enforced on API",
+            "No permission errors for user",
+            "Form validation on all fields"
+          ]
+        },
+        {
+          "id": "P2.3",
+          "title": "In-App Onboarding Tooltips",
+          "description": "Interactive tooltips guide new users through app features",
+          "components": [
+            "useOnboarding.ts",
+            "OnboardingTooltips.tsx"
+          ],
+          "estimatedHours": 12,
+          "dependencies": [],
+          "acceptance": [
+            "Tooltips show on first login",
+            "User can skip or go next",
+            "State persists in localStorage",
+            "Tooltips appear at right locations",
+            "Tutorial can be re-triggered",
+            "Links to Knowledge Base work"
+          ]
+        }
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "Polish & Optimization",
+      "duration": "1 week",
+      "priority": "🟡 MEDIUM",
+      "tasks": [
+        {
+          "id": "P3.1",
+          "title": "Wizard State Persistence",
+          "description": "Save wizard form state across sessions",
+          "estimatedHours": 6,
+          "dependencies": [],
+          "acceptance": [
+            "Closing browser doesn't lose wizard progress",
+            "State restores when returning",
+            "Clear button to reset state"
+          ]
+        },
+        {
+          "id": "P3.2",
+          "title": "Form Sections & Tooltips",
+          "description": "Organize Step 3 into logical sections with inline help",
+          "estimatedHours": 12,
+          "dependencies": [],
+          "acceptance": [
+            "Form has 4 collapsible sections",
+            "Each field has info icon with tooltip",
+            "Tooltips are helpful and clear",
+            "Accessible via keyboard"
+          ]
+        },
+        {
+          "id": "P3.3",
+          "title": "Invoice Preview Mockup",
+          "description": "Show real-time invoice mockup on right side of Step 3",
+          "estimatedHours": 14,
+          "dependencies": [],
+          "acceptance": [
+            "Preview updates as user types",
+            "Layout shows typical invoice format",
+            "Shows on desktop, hidden on mobile",
+            "Helps user understand invoice output"
+          ]
+        }
+      ]
+    }
+  ],
+  "components_to_create": [
+    {
+      "name": "ApartmentTable.tsx",
+      "path": "apps/web/src/components/ApartmentTable.tsx",
+      "type": "Table Component",
+      "props": {
+        "apartments": "Apartment[]",
+        "onEdit": "(id: string, data: Apartment) => void",
+        "onDelete": "(id: string) => void",
+        "onAdd": "() => void",
+        "editable": "boolean"
+      },
+      "features": ["Inline editing", "Row actions", "Delete confirmation", "Add button"]
+    },
+    {
+      "name": "ApartmentEditor.tsx",
+      "path": "apps/web/src/components/ApartmentEditor.tsx",
+      "type": "Modal Form",
+      "props": {
+        "apartment": "Apartment | null",
+        "onSubmit": "(data: Apartment) => void",
+        "onCancel": "() => void",
+        "buildingId": "string"
+      },
+      "features": ["Edit form", "Validation", "Error handling"]
+    },
+    {
+      "name": "IbanInput.tsx",
+      "path": "apps/web/src/components/IbanInput.tsx",
+      "type": "Input Component",
+      "props": {
+        "value": "string",
+        "onChange": "(value: string) => void",
+        "onValidate": "(valid: boolean) => void",
+        "country": "'SK' | 'CZ'",
+        "bicValue": "string",
+        "onBicChange": "(bic: string) => void"
+      },
+      "features": ["Auto-formatting", "Real-time validation", "Error display", "BIC display"]
+    },
+    {
+      "name": "AddressInput.tsx",
+      "path": "apps/web/src/components/AddressInput.tsx",
+      "type": "Autocomplete Component",
+      "props": {
+        "value": "string",
+        "onChange": "(value: string) => void",
+        "onSelect": "(address: AddressResult) => void",
+        "country": "'SK' | 'CZ'"
+      },
+      "features": ["Autocomplete dropdown", "Debounce", "Caching", "Normalization"]
+    },
+    {
+      "name": "ActivationCodesWizard.tsx",
+      "path": "apps/web/src/components/ActivationCodesWizard.tsx",
+      "type": "Multi-step Wizard",
+      "props": {
+        "building": "Building",
+        "onComplete": "() => void"
+      },
+      "features": ["6 steps", "Progress indicator", "PDF generation", "Email delivery"]
+    },
+    {
+      "name": "BuildingSettingsPage.tsx",
+      "path": "apps/web/src/shells/BuildingSettingsPage.tsx",
+      "type": "Page Component",
+      "features": ["Tabs", "Role-based access", "Audit log", "Form validation"]
+    }
+  ],
+  "backend_endpoints": [
+    {
+      "method": "PATCH",
+      "path": "/buildings/:id/apartments/:aptId",
+      "description": "Update apartment data",
+      "auth": "USER",
+      "body": {
+        "unitNumber": "string",
+        "firstName": "string",
+        "lastName": "string",
+        "email": "string",
+        "shares": "decimal"
+      },
+      "response": "Apartment"
+    },
+    {
+      "method": "DELETE",
+      "path": "/buildings/:id/apartments/:aptId",
+      "description": "Delete apartment",
+      "auth": "USER (CHAIRMAN/MANAGER/ADMIN of building)",
+      "response": "{ success: boolean }"
+    },
+    {
+      "method": "POST",
+      "path": "/buildings/:id/apartments",
+      "description": "Create new apartment",
+      "auth": "USER",
+      "body": {
+        "unitNumber": "string",
+        "firstName": "string",
+        "lastName": "string",
+        "email": "string",
+        "shares": "decimal"
+      },
+      "response": "Apartment"
+    },
+    {
+      "method": "GET",
+      "path": "/api/address/lookup",
+      "description": "Lookup address with autocomplete",
+      "query": {
+        "query": "string",
+        "country": "'SK' | 'CZ'"
+      },
+      "response": [
+        {
+          "displayName": "string",
+          "address": "string",
+          "city": "string",
+          "zip": "string",
+          "country": "string"
+        }
+      ]
+    },
+    {
+      "method": "GET",
+      "path": "/api/bic/lookup",
+      "description": "Lookup BIC by IBAN",
+      "query": {
+        "iban": "string"
+      },
+      "response": {
+        "bic": "string",
+        "bankName": "string",
+        "country": "string"
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/buildings/:id/activation-codes/generate",
+      "description": "Generate activation codes for all apartments",
+      "auth": "USER (MANAGER of building)",
+      "body": {
+        "regenerate": "boolean (optional)"
+      },
+      "response": {
+        "codesGenerated": "number",
+        "existingCodes": "number | null"
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/buildings/:id/apartments",
+      "description": "Get all apartments with optional codes",
+      "query": {
+        "include": "codes"
+      },
+      "response": "Apartment[]"
+    },
+    {
+      "method": "POST",
+      "path": "/buildings/:id/activation-codes/send-email",
+      "description": "Send activation codes via email to apartment owners",
+      "auth": "USER (MANAGER of building)",
+      "body": {
+        "apartmentIds": "string[]",
+        "subject": "string",
+        "template": "string"
+      },
+      "response": {
+        "sent": "number",
+        "failed": "number"
+      }
+    }
+  ],
+  "utilities_to_create": [
+    {
+      "file": "apps/api/src/utilities/iban.service.ts",
+      "functions": [
+        {
+          "name": "validateIban",
+          "params": ["iban: string"],
+          "returns": "boolean",
+          "description": "Validate IBAN using MOD97 check"
+        },
+        {
+          "name": "formatIban",
+          "params": ["iban: string"],
+          "returns": "string",
+          "description": "Format IBAN with spaces (SK00 XXXX XXXX…)"
+        },
+        {
+          "name": "normalizeIban",
+          "params": ["iban: string"],
+          "returns": "string",
+          "description": "Remove spaces and normalize to uppercase"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/utilities/address.service.ts",
+      "functions": [
+        {
+          "name": "lookupAddress",
+          "params": ["query: string", "country: 'SK' | 'CZ'"],
+          "returns": "Promise<AddressResult[]>",
+          "description": "Lookup addresses using Nominatim"
+        },
+        {
+          "name": "normalizeAddress",
+          "params": ["address: AddressResult"],
+          "returns": "{ street, city, zip, country }",
+          "description": "Normalize address format"
+        }
+      ]
+    },
+    {
+      "file": "apps/api/src/utilities/bic.service.ts",
+      "functions": [
+        {
+          "name": "lookupBic",
+          "params": ["iban: string"],
+          "returns": "Promise<{ bic: string, bankName: string }>",
+          "description": "Lookup BIC by IBAN"
+        },
+        {
+          "name": "getBankName",
+          "params": ["bic: string"],
+          "returns": "string | null",
+          "description": "Get bank name by BIC code"
+        }
+      ]
+    }
+  ],
+  "qa_criteria": {
+    "functionality": [
+      "All 4 wizard steps work without errors",
+      "Address lookup returns accurate results",
+      "IBAN validation works for SK and CZ",
+      "BIC auto-fills when IBAN is entered",
+      "PDF activations codes download successfully",
+      "Email delivery of codes works",
+      "Apartment table is fully editable",
+      "Building settings page enforces role-based access"
+    ],
+    "usability": [
+      "Wizard can be completed in <5 minutes",
+      "All required fields are clearly marked",
+      "Error messages are helpful and specific",
+      "No confusing abbreviations or jargon",
+      "Mobile layout is responsive and usable"
+    ],
+    "accessibility": [
+      "ARIA labels on all form inputs",
+      "Keyboard navigation works (Tab, Enter, Esc)",
+      "Focus indicators are visible",
+      "Color contrast is ≥4.5:1",
+      "Screen reader can read all content"
+    ],
+    "performance": [
+      "Address lookup responds in <500ms",
+      "IBAN validation is instant",
+      "PDF generation completes in <2 seconds",
+      "No memory leaks or console errors"
+    ]
+  },
+  "launch_requirements": {
+    "before_deploy": [
+      "All P1 tasks completed and tested",
+      "QA sign-off on desktop and mobile",
+      "Knowledge Base updated with new features",
+      "Support team briefed on changes",
+      "Monitoring and error logging configured"
+    ],
+    "during_deploy": [
+      "Deploy to staging first",
+      "Run smoke tests",
+      "Monitor error logs",
+      "Check database migration (if any)"
+    ],
+    "after_deploy": [
+      "Monitor production for 24 hours",
+      "Watch support queue for issues",
+      "Check user feedback and NPS",
+      "Performance monitoring (response times)"
+    ]
+  },
+  "success_metrics": {
+    "completion_rate": {
+      "current": "Unknown",
+      "target": ">80%"
+    },
+    "time_to_complete": {
+      "current": "Unknown",
+      "target": "<5 minutes"
+    },
+    "support_tickets": {
+      "topic": "Onboarding / Setup",
+      "current": "Unknown",
+      "target": "-50%"
+    },
+    "error_rate": {
+      "invalid_iban": {
+        "current": ">0",
+        "target": "0"
+      },
+      "invalid_address": {
+        "current": "Unknown",
+        "target": "<2%"
+      }
+    }
+  }
+}

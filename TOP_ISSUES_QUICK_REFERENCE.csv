@@ -1,0 +1,26 @@
+Priority,Rank,Issue,Module,Severity,Effort (hours),Impact,Status,Fix Recommendation
+P1,1,Mobile app missing critical features,Mobile App,BLOCKING,40-50,Owners can't use app,TODO,Implement Invoices/Payments/Push notifications
+P1,2,Notification system not implemented,System-wide,BLOCKING,20-30,Users uninformed of voting/payments,TODO,Email + SMS service (SendGrid/Twilio + Firebase)
+P1,3,Bank reconciliation fully manual,Payments,BLOCKING,8-12,Errors & duplicates,Partial,Add matching UI for unmatched rows
+P1,4,OCR confidence handling missing,Incoming Invoices,BLOCKING,3-4,Garbage data from low-conf images,TODO,Reject <60% confidence + image preprocessing
+P1,5,Tesseract worker crashes,Incoming Invoices,BLOCKING,4-6,App crash on certain PDFs,TODO,Sandbox worker in separate process + timeout
+P1,6,Quorum tally logic edge-case bugs,Voting,BLOCKING,2-3,Wrong voting results,TODO,Unit tests for edge cases
+P1,7,Device fingerprint is weak,Voting,BLOCKING,3-4,Double-voting possible,TODO,IP + user agent + session ID + rate limiting
+P1,8,No undo for issued invoices,Invoicing,BLOCKING,3-4,Can't cancel wrong batch,TODO,Soft delete + cancel endpoint
+P1,9,Supplier registry hardcoded/dummy,Incoming Invoices,BLOCKING,8-10,Can't auto-create suppliers,TODO,Integrate RPO/ORSR API
+P1,10,Phone pairing UX confusing,Incoming Invoices,HIGH,2-3,Users don't know if photo received,TODO,Real-time feedback + progress indicator
+P2,11,Approval workflow missing,Invoicing,HIGH,2-3,Invoices bypass DRAFT→APPROVED,TODO,Add DRAFT state with review step
+P2,12,Bulk operations missing,Admin,HIGH,3-4,Tedious 1-by-1 editing,TODO,Multi-select + batch edit UI
+P2,13,Excel import lacks column mapping,Admin,HIGH,2-3,Upload blindly + re-upload on error,TODO,Preview + column selector UI
+P2,14,Activation codes never expire,Security,HIGH,1-2,Security risk,TODO,14-day expiry + auto-cleanup
+P2,15,Payment proof/audit trail missing,Payments,HIGH,2-3,No who-marked-when tracking,TODO,created_by + created_at + marked_paid_note
+P2,16,Unread announcement count not persisted,Resident,HIGH,1,User loses place in feed,TODO,Save read state per user
+P2,17,Offline mode not implemented,Mobile,HIGH,8-10,No functionality without connection,TODO,Local cache + sync on reconnect
+P2,18,Duplicate payment detection missing,Payments,HIGH,1-2,Overpayments stuck,TODO,Idempotency keys + hash check
+P2,19,Ownership share recalc missing,Apartments,HIGH,2-3,% doesn't update when units change,TODO,Trigger recalc on apartment create/delete
+P2,20,Bank CSV format validation weak,Admin,HIGH,1-2,Invalid CSVs not caught,TODO,Better header validation + error messages
+P3,21,Dark mode not wired,Design,MEDIUM,0.5,Design ready but not implemented,TODO,Theme toggle in UI (infrastructure ready)
+P3,22,Batch OCR processing,Incoming Invoices,MEDIUM,2-3,Sequential processing slow,TODO,Parallel Tesseract workers (Bull queue)
+P3,23,Refund workflow missing,Payments,MEDIUM,4-6,Overpayments can't be reversed,BACKLOG,Credit memo system
+P3,24,GDPR compliance,System-wide,MEDIUM,4-6,Data retention policy missing,TODO,GDPR audit + data export/deletion endpoints
+P3,25,Internationalization (CZ/EN),System-wide,MEDIUM,8-10,Only SK + CS language,BACKLOG,i18n framework (react-i18next)

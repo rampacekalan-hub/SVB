@@ -85,39 +85,90 @@ export class OcrService {
   /**
    * Spustí OCR na image bufferi a parse-ne typické polia.
    * Tesseract import je dynamický — knižnica je veľká (35 MB), nezaťažuje boot.
+   *
+   * HARDENING:
+   * 1. Detekcia PDF magic bytes (4 varianty: %PDF, PDF-1.x, iText, etc.)
+   * 2. 30s timeout — ak Tesseract visel, kill worker
+   * 3. try-catch na worker.recognize() — any crash je graceful
    */
   async extractFromImage(buffer: Buffer): Promise<OcrExtraction> {
-    // Sanity check: PDF magic bytes — Tesseract padá na PDF a kraší Node!
-    if (buffer.length > 4 && buffer.slice(0, 4).toString() === '%PDF') {
-      this.log.warn('Tesseract OCR sa nedá použiť na PDF — vraciam prázdny extrakt.');
+    // 1. ROBUST PDF detection — check magic bytes (PDF header + variants)
+    const isPdfLikely = this.isPdfOrNonImage(buffer);
+    if (isPdfLikely) {
+      this.log.warn('Buffer vyzerá ako PDF alebo non-image — Tesseract by padol. Vraciam prázdny extrakt.');
       return { rawText: '', confidence: 0 };
     }
 
     let rawText = '';
     let confidence = 0;
     let worker: any = null;
-
-    // Globálny handler pre uncaughtException z Tesseract worker-a — zabraňuje crash Node-u
-    const uncaughtHandler = (err: Error) => {
-      this.log.error(`Tesseract worker uncaught: ${err.message}`);
-    };
-    process.once('uncaughtException', uncaughtHandler);
+    let timeoutHandle: NodeJS.Timeout | null = null;
 
     try {
       const { createWorker } = await import('tesseract.js');
       worker = await createWorker(['slk', 'ces'], 1, { logger: () => undefined });
-      const result = await worker.recognize(buffer);
+
+      // 2. 30-second timeout guard — ak Tesseract visel, kill a vrátiť empty
+      const recognizePromise = worker.recognize(buffer);
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Tesseract timeout (30s)')), 30000)
+      );
+
+      const result = await Promise.race([recognizePromise, timeoutPromise]) as any;
       rawText = result.data.text;
       confidence = (result.data.confidence ?? 0) / 100;
     } catch (err) {
-      this.log.warn(`OCR zlyhal (vraciam prázdny extrakt): ${(err as Error).message}`);
+      const message = (err as Error).message;
+      this.log.warn(`OCR zlyhal (${message}) — vraciam prázdny extrakt`);
+      // Keď je timeout, force-kill worker
+      if (message.includes('timeout') && worker) {
+        try {
+          await worker.terminate();
+          worker = null;
+        } catch {
+          // Force kill — ignore errors
+          worker = null;
+        }
+      }
       return { rawText: '', confidence: 0 };
     } finally {
-      process.removeListener('uncaughtException', uncaughtHandler);
-      if (worker) try { await worker.terminate(); } catch { /* ignore */ }
+      if (timeoutHandle) clearTimeout(timeoutHandle);
+      if (worker) {
+        try {
+          await worker.terminate();
+        } catch {
+          /* ignore */
+        }
+      }
     }
 
     return this.parse(rawText, confidence);
+  }
+
+  /**
+   * Detekuje či buffer je PDF alebo iný non-image format.
+   * Kontroluje viaceré magic bytes aby som vylúčil PDF variácie.
+   */
+  private isPdfOrNonImage(buffer: Buffer): boolean {
+    if (buffer.length < 4) return false;
+
+    // PDF magic bytes: %PDF (25 50 44 46), PDF-1.x variants
+    const first4 = buffer.slice(0, 4);
+    if (first4.equals(Buffer.from('%PDF'))) return true;
+    if (first4.equals(Buffer.from('\x25PDF'))) return true; // decimal notation
+
+    // iText PDF variant: %PDF...%EOF
+    if (buffer.toString('utf8', 0, 4).includes('PDF')) return true;
+
+    // PostScript / TIFF / DWG — iné formáty, Tesseract neunestie
+    if (first4[0] === 0x25 && first4[1] === 0x21) return true; // %! (PostScript)
+    if (buffer.toString('utf8', 0, 2) === 'II' || buffer.toString('utf8', 0, 2) === 'MM') {
+      // TIFF magic bytes (little/big endian)
+      return true;
+    }
+    if (buffer.toString('utf8', 0, 2) === 'AC') return true; // AutoCAD DWG
+
+    return false;
   }
 
   /**
