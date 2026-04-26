@@ -185,7 +185,15 @@ export class ExternalRegistryService {
    * Pre presný auto-fill: user musí poskytnúť IČO. Tento search je „discovery".
    */
   private async searchRpoName(query: string): Promise<RegistryLookupResult[]> {
-    const url = `https://www.orsr.sk/hladaj_subjekt.asp?OBMENO=${encodeURIComponent(query)}&PF=0&SID=0&S=on&R=on`;
+    // ORSR.sk vyžaduje query BEZ DIAKRITIKY — inak vracia 0 výsledkov.
+    // Strip diakritiky cez Unicode normalize NFD + odstrániť combining marks.
+    const stripped = query
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // diacritic combining
+      .toLowerCase()
+      .trim();
+    if (stripped.length < 2) return [];
+    const url = `https://www.orsr.sk/hladaj_subjekt.asp?OBMENO=${encodeURIComponent(stripped)}&PF=0&SID=0&S=on&R=on`;
     try {
       const res = await fetch(url, {
         headers: { 'User-Agent': 'Mozilla/5.0 (DomovPlus/1.0)' },

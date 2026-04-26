@@ -12,6 +12,7 @@ import { Field, Form, Row } from '../components/forms';
 import { SkeletonList } from '../components/Skeleton';
 import { IcoLookupHint } from '../components/IcoLookup';
 import type { RegistryResult } from '../hooks/useIcoLookup';
+import { CompanyNameSearch } from '../components/CompanyNameSearch';
 
 interface Building {
   id: string;
@@ -126,12 +127,29 @@ export function BillingSettingsPage({ buildingId }: { buildingId: string }) {
           </Btn>
         }
       >
-        <Field label="Názov SVB / BD na faktúre" required hint={`Default zo základných údajov: „${b.name}"`}>
+        <Field
+          label="Názov SVB / BD / správcu"
+          required
+          hint="Toto je vaša fakturujúca entita — nemusí byť rovnaké ako názov budovy. Pri písaní sa zobrazia návrhy z ORSR.sk"
+        >
           <input
             required
             value={b.billingName ?? ''}
             onChange={(e) => set('billingName', e.target.value)}
-            placeholder={b.name}
+            placeholder={`napr. SVB ${b.name} / Správa, s. r. o.`}
+            autoComplete="off"
+          />
+          <CompanyNameSearch
+            query={b.billingName ?? ''}
+            country="SK"
+            onPick={(r) => {
+              setB((prev) => prev ? {
+                ...prev,
+                billingName: r.name ?? prev.billingName,
+                billingIco: r.ico ?? prev.billingIco,
+                billingAddress: r.address ?? prev.billingAddress,
+              } : prev);
+            }}
           />
         </Field>
 

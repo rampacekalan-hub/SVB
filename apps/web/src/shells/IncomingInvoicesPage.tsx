@@ -345,21 +345,19 @@ export function NewIncomingInvoicePage({ buildingId }: { buildingId: string }) {
         <PhonePairWidget
           buildingId={buildingId}
           onPhotoReceived={async ({ sessionId, keyIndex }) => {
-            // Po prijatí fotky z mobilu: stiahni binarne dáta + spusti OCR + pre-fill formulár
-            setBusy(true);
+            // Okamžite prepneme na manual aby user nesedel na "Pokračujem na formulár..." stuck obrazovke.
+            // OCR sa spustí v pozadí — formulár sa pre-vyplní keď OCR dokončí.
+            setMode('manual');
             try {
               const fileData = await api<{ base64: string; key: string; sizeBytes: number }>(
                 `/phone-pairing/${sessionId}/file/${keyIndex}`,
               );
-              // Convert base64 → File pre formData upload
               const blob = await (await fetch(`data:image/jpeg;base64,${fileData.base64}`)).blob();
               const file = new File([blob], `phone-${Date.now()}.jpg`, { type: 'image/jpeg' });
+              // Spustí OCR + pre-fill (vlastná chyba sa zobrazí ako error banner v ocrUpload)
               await ocrUpload(file);
             } catch (e) {
-              setErr('OCR z mobilnej fotky zlyhal: ' + (e as Error).message);
-              setMode('manual');
-            } finally {
-              setBusy(false);
+              setErr('OCR z mobilnej fotky zlyhal: ' + (e as Error).message + '. Vyplňte ručne.');
             }
           }}
           onCancel={() => setMode('choose')}
@@ -368,6 +366,12 @@ export function NewIncomingInvoicePage({ buildingId }: { buildingId: string }) {
 
       {mode === 'manual' && (
         <>
+          {busy && !ocrPreview && (
+            <div className="ocr-running">
+              <span className="ico-hint-spinner" />
+              <span><strong>Spracovávam fotku…</strong> OCR vytiahne sumu, IBAN, IČO, VS a dátumy. Trvá 5–15 sekúnd.</span>
+            </div>
+          )}
           {ocrPreview && (
             <div className="ii-ocr-summary">
               <div className="ii-ocr-head">
