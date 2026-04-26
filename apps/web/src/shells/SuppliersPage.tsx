@@ -136,6 +136,8 @@ function SupplierEditor({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [icoApplied, setIcoApplied] = useState(false);
+  // View vs Edit — nový dodávateľ rovno editácia, existujúci najprv view
+  const [editMode, setEditMode] = useState(isNew);
 
   function applyRegistry(r: RegistryResult) {
     setForm((f) => ({
@@ -189,10 +191,67 @@ function SupplierEditor({
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 720 }}>
         <div className="modal-head">
-          <h2>{isNew ? 'Nový dodávateľ' : `Upraviť: ${supplier!.name}`}</h2>
-          <Btn variant="ghost" onClick={onClose} style={{ minHeight: 32, padding: '0 10px' }}>✕</Btn>
+          <h2>{isNew ? 'Nový dodávateľ' : (editMode ? `Upraviť: ${supplier!.name}` : supplier!.name)}</h2>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {!isNew && !editMode && (
+              <Btn variant="ghost" iconLeft={<Icon name="edit" size={16} />} onClick={() => setEditMode(true)}>
+                Upraviť
+              </Btn>
+            )}
+            <Btn variant="ghost" onClick={onClose} style={{ minHeight: 32, padding: '0 10px' }}>✕</Btn>
+          </div>
         </div>
-        <Form
+
+        {/* VIEW MODE — read-only kompaktný prehľad */}
+        {!editMode && supplier && (
+          <div className="billing-view" style={{ margin: '0 1.25rem 1.25rem' }}>
+            <div className="billing-view-grid">
+              <div className="billing-view-row">
+                <dt>Názov</dt><dd><strong>{supplier.name}</strong></dd>
+              </div>
+              <div className="billing-view-row">
+                <dt>Kategória</dt><dd>{supplier.category ?? '—'}</dd>
+              </div>
+              <div className="billing-view-row">
+                <dt>IČO</dt><dd>{supplier.ico ?? '—'}</dd>
+              </div>
+              <div className="billing-view-row">
+                <dt>DIČ</dt><dd>{supplier.dic ?? '—'}</dd>
+              </div>
+              <div className="billing-view-row">
+                <dt>IČ DPH</dt><dd>{supplier.vatId ?? '—'}</dd>
+              </div>
+              <div className="billing-view-row">
+                <dt>IBAN</dt><dd className="mono">{supplier.iban ?? '—'}</dd>
+              </div>
+              <div className="billing-view-row billing-view-row-wide">
+                <dt>Adresa</dt><dd>{supplier.address ?? '—'}</dd>
+              </div>
+              <div className="billing-view-row">
+                <dt>Email</dt><dd>{supplier.email ?? '—'}</dd>
+              </div>
+              <div className="billing-view-row">
+                <dt>Telefón</dt><dd>{supplier.phone ?? '—'}</dd>
+              </div>
+              {supplier.note && (
+                <div className="billing-view-row billing-view-row-wide">
+                  <dt>Poznámka</dt><dd className="muted">{supplier.note}</dd>
+                </div>
+              )}
+            </div>
+            <p className="inline-meta" style={{ marginTop: '0.875rem' }}>
+              Údaje proti registru porovnávame <strong>iba pri uploade faktúry</strong> — vtedy ti ukážeme prípadné rozdiely.
+              Pre úpravu klikni <strong>Upraviť</strong> hore.
+            </p>
+            <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
+              <Btn variant="danger" onClick={remove}>Vymazať</Btn>
+              <Btn variant="ghost" onClick={onClose}>Zavrieť</Btn>
+            </div>
+          </div>
+        )}
+
+        {/* EDIT MODE — formulár s lookup */}
+        {editMode && <Form
           title=""
           onSubmit={submit}
           error={err}
@@ -255,6 +314,7 @@ function SupplierEditor({
                 country="SK"
                 onApply={applyRegistry}
                 applied={icoApplied}
+                enabled={editMode}
               />
             </Field>
           </Row>
@@ -288,7 +348,7 @@ function SupplierEditor({
           <Field label="Poznámka" hint="Voliteľne">
             <textarea rows={2} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
           </Field>
-        </Form>
+        </Form>}
       </div>
     </div>
   );
