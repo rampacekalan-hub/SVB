@@ -49,19 +49,35 @@ export class OcrService {
     return this.extractFromImage(buffer);
   }
 
-  /** PDF text extraction — vysoká presnosť, žiadny OCR. */
+  /**
+   * PDF text extraction — vysoká presnosť, žiadny OCR.
+   * Pri zlyhaní vraciame prázdny extrakt — Tesseract NEdá sa použiť na PDF
+   * (podporuje len bitmapy a crashne celý Node process).
+   */
   async extractFromPdf(buffer: Buffer): Promise<OcrExtraction> {
     try {
-      // pdf-parse má rôzne export tvary v rôznych verziách — bezpečne probni oboje
+      // @ts-expect-error - pdf-parse v1 nemá TS types
       const mod: any = await import('pdf-parse');
       const pdfParse = mod.default ?? mod;
+      if (typeof pdfParse !== 'function') {
+        this.log.warn('pdf-parse nemá callable default export — preskakujem.');
+        return { rawText: '', confidence: 0 };
+      }
       const data: any = await pdfParse(buffer);
       const text = data?.text ?? '';
       this.log.log(`PDF extrahovaný (${text.length} znakov)`);
-      return this.parse(text, 0.95); // PDF text je vždy presný
+      if (!text || text.trim().length < 10) {
+        // PDF je obrázkový sken — bez OCR engine na PDF nevieme čítať
+        return {
+          rawText: '',
+          confidence: 0,
+          // signál pre UI: PDF je sken, treba ručne zadať
+        };
+      }
+      return this.parse(text, 0.95);
     } catch (err) {
-      this.log.warn(`PDF parse zlyhal, fallback na OCR: ${(err as Error).message}`);
-      return this.extractFromImage(buffer);
+      this.log.warn(`PDF parse zlyhal: ${(err as Error).message}`);
+      return { rawText: '', confidence: 0 };
     }
   }
 
@@ -70,21 +86,34 @@ export class OcrService {
    * Tesseract import je dynamický — knižnica je veľká (35 MB), nezaťažuje boot.
    */
   async extractFromImage(buffer: Buffer): Promise<OcrExtraction> {
+    // Sanity check: PDF magic bytes — Tesseract padá na PDF a kraší Node!
+    if (buffer.length > 4 && buffer.slice(0, 4).toString() === '%PDF') {
+      this.log.warn('Tesseract OCR sa nedá použiť na PDF — vraciam prázdny extrakt.');
+      return { rawText: '', confidence: 0 };
+    }
+
     let rawText = '';
     let confidence = 0;
+    let worker: any = null;
+
+    // Globálny handler pre uncaughtException z Tesseract worker-a — zabraňuje crash Node-u
+    const uncaughtHandler = (err: Error) => {
+      this.log.error(`Tesseract worker uncaught: ${err.message}`);
+    };
+    process.once('uncaughtException', uncaughtHandler);
+
     try {
-      // Dynamic import — Tesseract.js je 35 MB
       const { createWorker } = await import('tesseract.js');
-      const worker = await createWorker(['slk', 'ces'], 1, {
-        logger: () => undefined, // silence default progress logging
-      });
+      worker = await createWorker(['slk', 'ces'], 1, { logger: () => undefined });
       const result = await worker.recognize(buffer);
       rawText = result.data.text;
       confidence = (result.data.confidence ?? 0) / 100;
-      await worker.terminate();
     } catch (err) {
       this.log.warn(`OCR zlyhal (vraciam prázdny extrakt): ${(err as Error).message}`);
       return { rawText: '', confidence: 0 };
+    } finally {
+      process.removeListener('uncaughtException', uncaughtHandler);
+      if (worker) try { await worker.terminate(); } catch { /* ignore */ }
     }
 
     return this.parse(rawText, confidence);
