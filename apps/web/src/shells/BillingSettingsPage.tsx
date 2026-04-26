@@ -147,8 +147,12 @@ export function BillingSettingsPage({ buildingId }: { buildingId: string }) {
                 ...prev,
                 billingName: r.name ?? prev.billingName,
                 billingIco: r.ico ?? prev.billingIco,
+                billingDic: r.dic ?? prev.billingDic,
+                billingVatId: r.vatId ?? prev.billingVatId,
                 billingAddress: r.address ?? prev.billingAddress,
+                billingRegistry: r.registry ?? prev.billingRegistry,
               } : prev);
+              if (r.ico) setIcoApplied(true);
             }}
           />
         </Field>

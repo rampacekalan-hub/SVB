@@ -227,8 +227,11 @@ function SupplierEditor({
                   ...f,
                   name: r.name ?? f.name,
                   ico: r.ico ?? f.ico,
+                  dic: r.dic ?? f.dic,
+                  vatId: r.vatId ?? f.vatId,
                   address: r.address ?? f.address,
                 }));
+                if (r.ico) setIcoApplied(true);
               }}
             />
           </Field>

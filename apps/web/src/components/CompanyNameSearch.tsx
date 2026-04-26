@@ -13,7 +13,11 @@ import { api } from '../api';
 export interface NameSearchResult {
   ico?: string;
   name?: string;
+  dic?: string;
+  vatId?: string;
   address?: string;
+  legalForm?: string;
+  registry?: string;
   source: 'RPO_SK' | 'ARES_CZ' | 'NONE';
 }
 
@@ -78,7 +82,20 @@ export function CompanyNameSearch({ query, country = 'SK', onPick }: Props) {
           key={i}
           type="button"
           className="cns-row cns-result"
-          onClick={() => { setOpen(false); onPick(r); }}
+          onClick={async () => {
+            setOpen(false);
+            // Ak máme IČO, ešte raz zavoláme lookup pre full enrich (DIČ, IČ DPH, registry)
+            if (r.ico) {
+              try {
+                const enriched = await api<NameSearchResult & { dic?: string; vatId?: string; legalForm?: string; registry?: string }>(
+                  `/external-registry/lookup?ico=${r.ico}&country=${country}`,
+                );
+                onPick({ ...r, ...enriched });
+                return;
+              } catch { /* fallback na základné dáta */ }
+            }
+            onPick(r);
+          }}
         >
           <div>
             <strong>{r.name}</strong>

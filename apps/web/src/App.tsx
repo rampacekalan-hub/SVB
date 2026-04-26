@@ -829,8 +829,12 @@ function Onboarding({ me, onDone }: { me: Me; onDone: (me: Me) => void }) {
                     ...b,
                     billingName: r.name ?? b.billingName,
                     billingIco: r.ico ?? b.billingIco,
+                    billingDic: r.dic ?? b.billingDic,
+                    billingVatId: r.vatId ?? b.billingVatId,
                     billingAddress: r.address ?? b.billingAddress,
+                    billingRegistry: r.registry ?? b.billingRegistry,
                   }));
+                  if (r.ico) setIcoApplied(true);
                 }}
               />
             </label>

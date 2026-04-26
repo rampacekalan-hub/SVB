@@ -609,10 +609,21 @@ function PhonePairWidget({ buildingId, onPhotoReceived, onCancel }: {
         {qrSvg && <div className="ii-pair-qr" dangerouslySetInnerHTML={{ __html: qrSvg }} />}
 
         {session && (
-          <p className="ii-pair-url">
-            Alebo otvorte odkaz na mobile: <br />
-            <code>{session.pairUrl}</code>
-          </p>
+          <>
+            <p className="ii-pair-url">
+              Alebo otvorte odkaz na mobile: <br />
+              <code>{session.pairUrl}</code>
+            </p>
+            {/localhost|127\.0\.0\.1/.test(session.pairUrl) && (
+              <div className="ii-pair-warn">
+                ⚠️ <strong>Lokálny dev:</strong> mobil nedosiahne <code>localhost</code>.
+                Pre testovanie QR otvorte produkciu:{' '}
+                <a href="http://domov.204.168.212.58.nip.io" target="_blank" rel="noreferrer">
+                  domov.204.168.212.58.nip.io →
+                </a>
+              </div>
+            )}
+          </>
         )}
 
         {keysReceived.length > 0 ? (

@@ -51,10 +51,20 @@ export class ExternalRegistryService {
       if (country === 'CZ') {
         result = await this.lookupAres(cleaned);
       } else if (country === 'SK') {
-        result = await this.lookupRpo(cleaned);
+        // Paralelne: finstat (lokálne má priestor pre IČ DPH, DIČ, adresa, právna forma)
+        // + ORSR detail by IČO (registry info, Oddiel + Vložka)
+        const [finstat, orsr] = await Promise.all([
+          this.lookupRpo(cleaned).catch(() => ({ found: false, source: 'NONE' as const })),
+          this.lookupOrsrByIco(cleaned).catch(() => ({ found: false, source: 'NONE' as const })),
+        ]);
+        result = this.mergeResults(finstat, orsr, cleaned);
       } else {
-        // Auto: skúsi SK, ak nenájde tak CZ
-        result = await this.lookupRpo(cleaned);
+        // Auto: skúsi SK paralelne, ak nenájde tak CZ
+        const [finstat, orsr] = await Promise.all([
+          this.lookupRpo(cleaned).catch(() => ({ found: false, source: 'NONE' as const })),
+          this.lookupOrsrByIco(cleaned).catch(() => ({ found: false, source: 'NONE' as const })),
+        ]);
+        result = this.mergeResults(finstat, orsr, cleaned);
         if (!result.found) result = await this.lookupAres(cleaned);
       }
     } catch (err) {
@@ -160,7 +170,7 @@ export class ExternalRegistryService {
       legalForm,
       address,
       active: !inactive,
-      registry: legalForm,
+      // Registry necháme prázdne — ORSR ho vyplní s reálnym Oddielom + Vložkou
     };
   }
 
@@ -186,52 +196,190 @@ export class ExternalRegistryService {
    */
   private async searchRpoName(query: string): Promise<RegistryLookupResult[]> {
     // ORSR.sk vyžaduje query BEZ DIAKRITIKY — inak vracia 0 výsledkov.
-    // Strip diakritiky cez Unicode normalize NFD + odstrániť combining marks.
     const stripped = query
       .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // diacritic combining
+      .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase()
       .trim();
     if (stripped.length < 2) return [];
-    const url = `https://www.orsr.sk/hladaj_subjekt.asp?OBMENO=${encodeURIComponent(stripped)}&PF=0&SID=0&S=on&R=on`;
+
+    const listUrl = `https://www.orsr.sk/hladaj_subjekt.asp?OBMENO=${encodeURIComponent(stripped)}&PF=0&SID=0&S=on&R=on`;
     try {
-      const res = await fetch(url, {
+      const res = await fetch(listUrl, {
         headers: { 'User-Agent': 'Mozilla/5.0 (DomovPlus/1.0)' },
         signal: AbortSignal.timeout(10000),
       });
       if (!res.ok) return [];
-      const buf = await res.arrayBuffer();
-      // ORSR vracia windows-1250 — node-fetch dekóduje ako utf-8 a rozbije diakritiku.
-      // TextDecoder s 'windows-1250' funguje v Node 20+
-      const html = new TextDecoder('windows-1250').decode(buf);
+      const html = new TextDecoder('windows-1250').decode(await res.arrayBuffer());
 
-      // Pattern: <a href="vypis.asp?ID=21634&amp;SID=2&amp;P=0" class="link" alt="..." title="...">NAZOV</a>
-      // Filter: len výsledky s alt= attribute (tie sú názvy firiem; "Aktuálny"/"Úplný" sú navigačné).
+      // 1) Vytiahni list mien + vypis IDs
       const matches = Array.from(html.matchAll(
-        /<a\s+href="vypis\.asp\?ID=(\d+)&amp;SID=\d+&amp;P=0"\s+class\s*=\s*"link"\s+alt="[^"]*"\s+title="[^"]*"[^>]*>([^<]+)<\/a>/gi,
+        /<a\s+href="vypis\.asp\?ID=(\d+)&amp;SID=(\d+)&amp;P=0"\s+class\s*=\s*"link"\s+alt="[^"]*"\s+title="[^"]*"[^>]*>([^<]+)<\/a>/gi,
       ));
 
-      const results: RegistryLookupResult[] = [];
+      type Entry = { id: string; sid: string; name: string };
+      const entries: Entry[] = [];
       const seen = new Set<string>();
       for (const m of matches) {
-        const name = m[2].trim();
-        if (seen.has(name)) continue;
-        // Skip generic navigačné texty (defenzíva)
-        if (/^(aktu[aá]lny|[uú]pln[yý])$/i.test(name)) continue;
+        const name = m[3].trim();
+        if (seen.has(name) || /^(aktu[aá]lny|[uú]pln[yý])$/i.test(name)) continue;
         seen.add(name);
-        results.push({
-          found: true,
-          source: 'RPO_SK',
-          name,
-          // ORSR vypis.asp?ID je interný ORSR identifikátor, nie IČO.
-          // Frontend ponúkne "Otvoriť ORSR" link na detail.
-        });
-        if (results.length >= 6) break;
+        entries.push({ id: m[1], sid: m[2], name });
+        if (entries.length >= 6) break;
       }
-      return results;
+
+      // 2) Pre každý výsledok PARALELNE načítame detail a vytiahneme IČO + registry
+      const enriched = await Promise.all(entries.map(async (e) => {
+        try {
+          const detail = await this.fetchOrsrDetail(e.id, e.sid);
+          return {
+            found: true,
+            source: 'RPO_SK' as const,
+            ico: detail.ico,
+            name: detail.name ?? e.name,
+            address: detail.address,
+            legalForm: detail.legalForm,
+            registry: detail.registry,
+            active: detail.active,
+          };
+        } catch {
+          return {
+            found: true,
+            source: 'RPO_SK' as const,
+            name: e.name,
+          };
+        }
+      }));
+
+      return enriched;
     } catch {
       return [];
     }
+  }
+
+  /**
+   * Vyhľadá v ORSR podľa IČO → načíta detail vypis.asp → vráti všetky polia
+   * vrátane "Zápis v registri" (Oddiel + Vložka číslo + súd).
+   */
+  private async lookupOrsrByIco(ico: string): Promise<RegistryLookupResult> {
+    // ORSR má SAMOSTATNÝ endpoint pre IČO search: hladaj_ico.asp
+    const listUrl = `https://www.orsr.sk/hladaj_ico.asp?ICO=${ico}&SID=0`;
+    const res = await fetch(listUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (DomovPlus/1.0)' },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return { found: false, source: 'NONE' };
+    const html = new TextDecoder('windows-1250').decode(await res.arrayBuffer());
+
+    // Vytiahni prvý link na vypis.asp?ID=...
+    const m = html.match(/<a\s+href="vypis\.asp\?ID=(\d+)&amp;SID=(\d+)&amp;P=0"\s+class\s*=\s*"link"\s+alt="[^"]*"/i);
+    if (!m) return { found: false, source: 'NONE' };
+
+    const detail = await this.fetchOrsrDetail(m[1], m[2]);
+    if (!detail.ico && !detail.name) return { found: false, source: 'NONE' };
+
+    return {
+      found: true,
+      source: 'RPO_SK',
+      ico: detail.ico ?? ico,
+      name: detail.name,
+      address: detail.address,
+      legalForm: detail.legalForm,
+      registry: detail.registry,
+      active: detail.active,
+    };
+  }
+
+  /**
+   * Merge dvoch zdrojov (finstat + ORSR) — preferuje neprázdne hodnoty.
+   * Ak ani jeden nenašiel firmu, vráti not-found.
+   */
+  private mergeResults(
+    a: RegistryLookupResult,
+    b: RegistryLookupResult,
+    fallbackIco: string,
+  ): RegistryLookupResult {
+    if (!a.found && !b.found) return { found: false, source: 'NONE' };
+    const pick = <K extends keyof RegistryLookupResult>(k: K): RegistryLookupResult[K] =>
+      (a[k] as any) || (b[k] as any);
+
+    return {
+      found: true,
+      source: a.found ? a.source : b.source,
+      ico: pick('ico') ?? fallbackIco,
+      name: pick('name'),
+      dic: pick('dic'),
+      vatId: pick('vatId'),
+      legalForm: pick('legalForm'),
+      address: pick('address'),
+      registry: pick('registry'),
+      active: a.active ?? b.active ?? true,
+    };
+  }
+
+  /** Načíta ORSR vypis page a vytiahne IČO + adresu + meno + právnu formu. */
+  private async fetchOrsrDetail(id: string, sid: string) {
+    const url = `https://www.orsr.sk/vypis.asp?ID=${id}&SID=${sid}&P=0`;
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (DomovPlus/1.0)' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return {};
+    const html = new TextDecoder('windows-1250').decode(await res.arrayBuffer());
+
+    // Helper: po riadku <span class="tl">LABEL:&nbsp;</span> nasleduje ďalej hodnota v <span class='ra'>VAL</span>
+    // Layout je multi-row table, takže hľadáme prvý span class='ra' po danom labele
+    const fieldValue = (label: string): string | undefined => {
+      const labelRe = new RegExp(`<span class="tl">${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}:&nbsp;</span>`, 'i');
+      const labelIdx = html.search(labelRe);
+      if (labelIdx < 0) return undefined;
+      // Nájdi prvý <span class='ra'>... potom v ďalšom HTML
+      const slice = html.slice(labelIdx, labelIdx + 1500);
+      const m = slice.match(/<span class=['"]ra['"][^>]*>([^<]+)<\/span>/);
+      return m ? m[1].replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim() : undefined;
+    };
+
+    // IČO môže byť "  56 908 377 " — strip whitespace
+    const icoRaw = fieldValue('IČO');
+    const ico = icoRaw?.replace(/\s+/g, '');
+
+    const name = fieldValue('Obchodné meno');
+
+    // Sídlo má viacero čiastkových polí (Ulica, Obec, PSČ) → vytiahnem všetky <span class='ra'> v okolí Sídla
+    let address: string | undefined;
+    const sidloMatch = html.match(/<span class="tl">Sídlo:&nbsp;<\/span>[\s\S]*?(?=<span class="tl">|<\/table>\s*<\/td>\s*<\/tr>\s*<tr)/i);
+    if (sidloMatch) {
+      const parts = Array.from(sidloMatch[0].matchAll(/<span class=['"]ra['"][^>]*>([^<]+)<\/span>/g))
+        .map((m) => m[1].replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim())
+        .filter((s) => s && !s.startsWith('(od:') && !/^\(/.test(s));
+      address = parts.length ? parts.join(', ') : undefined;
+    }
+
+    const legalForm = fieldValue('Právna forma');
+
+    // Zápis v registri — extrahuj Oddiel + Vložka číslo + Registrový súd
+    // Vzor v HTML:
+    //   <span class="tl">Oddiel:&nbsp;</span> <span class="ra">Sro</span>
+    //   <span class="tl">Vložka číslo:&nbsp;</span> <span class="ra">187159/B </span>
+    // + niekedy je v top header "Okresný súd Bratislava III"
+    const oddiel = fieldValue('Oddiel');
+    const vlozka = fieldValue('Vložka číslo');
+    const courtMatch = html.match(/Okresn[ýý]\s+s[úu]d\s+([A-Za-zÁ-žĎ-ž\s]+?)(?:[,<]|\s+v\s+)/i);
+    const court = courtMatch?.[1].trim();
+
+    let registry: string | undefined;
+    if (oddiel || vlozka) {
+      const parts: string[] = [];
+      if (court) parts.push(`OS ${court}`);
+      if (oddiel) parts.push(`Oddiel ${oddiel}`);
+      if (vlozka) parts.push(`Vložka ${vlozka}`);
+      registry = parts.join(', ');
+    }
+
+    // Aktívnosť — header obsahuje "Stav firmy: Aktívny" / "Stav firmy: V likvidácii" / "Vymazaná"
+    const inactive = /v\s+likvid[áa]cii|vymazan[áé]|zaniknut[áé]/i.test(html.slice(0, 5000));
+
+    return { ico, name, address, legalForm, registry, active: !inactive };
   }
 
   // ─────────────────────────────────────────────────────────
