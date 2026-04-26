@@ -31,6 +31,26 @@ export class PhonePairingController {
     return this.svc.getStatus(req.user, id);
   }
 
+  /**
+   * PC strana — stiahne fotku zo session ako data URL (base64).
+   * Použité po prijatí fotky cez QR pair na re-upload do OCR endpointu.
+   */
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Get(':id/file/:index')
+  async file(
+    @Req() req: { user: any },
+    @Param('id') id: string,
+    @Param('index') index: string,
+  ) {
+    const { key, buffer } = await this.svc.getFileContent(req.user, id, parseInt(index, 10) || 0);
+    return {
+      key,
+      base64: buffer.toString('base64'),
+      sizeBytes: buffer.length,
+    };
+  }
+
   /** Mobil otvorí URL — bez auth, len token. Resolve metadata. */
   @Get('token/:token')
   resolve(@Param('token') token: string) {

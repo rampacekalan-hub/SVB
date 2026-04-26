@@ -18,6 +18,9 @@ import { TermsPage, PrivacyPage, DpaPage } from './legal/LegalPages';
 import { StatusPage, ChangelogPage } from './legal/StatusAndChangelog';
 import { MarketingMenu } from './marketing/MarketingMenu';
 import { PhonePairUploadPage } from './shells/PhonePairUploadPage';
+import { IcoLookupHint } from './components/IcoLookup';
+import { CompanyNameSearch } from './components/CompanyNameSearch';
+import type { RegistryResult } from './hooks/useIcoLookup';
 
 const ROLE_LABEL: Record<string, string> = {
   OWNER: 'Vlastník',
@@ -502,6 +505,19 @@ function Onboarding({ me, onDone }: { me: Me; onDone: (me: Me) => void }) {
   });
   const [billingBusy, setBillingBusy] = useState(false);
   const [billingErr, setBillingErr] = useState<string | null>(null);
+  const [icoApplied, setIcoApplied] = useState(false);
+
+  function applyRegistryToBilling(r: RegistryResult) {
+    setBilling((b) => ({
+      ...b,
+      billingName: r.name ?? b.billingName,
+      billingDic: r.dic ?? b.billingDic,
+      billingVatId: r.vatId ?? b.billingVatId,
+      billingAddress: r.address ?? b.billingAddress,
+      billingRegistry: r.registry ?? b.billingRegistry,
+    }));
+    setIcoApplied(true);
+  }
 
   async function submitBilling(e: React.FormEvent) {
     e.preventDefault();
@@ -767,13 +783,12 @@ function Onboarding({ me, onDone }: { me: Me; onDone: (me: Me) => void }) {
             </button>
             <span className="spacer" />
             <button onClick={() => {
-              // Pre-fill billing from building basics keď chodí na ďalší krok
-              setBilling((b) => ({
-                ...b,
-                billingName: b.billingName || building.name,
-                billingIco: b.billingIco || (building.ico ?? ''),
-                billingAddress: b.billingAddress || `${building.address}, ${building.zip} ${building.city}`,
-              }));
+              // Fakturačné údaje sú nezávislé od názvu budovy — predseda môže byť SVB,
+              // ktoré spravuje viacero budov. Prefill iba ak má budova IČO (vtedy je to
+              // dosť pravdepodobne tá istá entita).
+              if (building.ico) {
+                setBilling((b) => ({ ...b, billingIco: b.billingIco || (building.ico ?? '') }));
+              }
               setStep(3);
             }}>Pokračovať →</button>
           </div>
@@ -787,20 +802,49 @@ function Onboarding({ me, onDone }: { me: Me; onDone: (me: Me) => void }) {
 
       {step === 3 && building && (
         <section className="card" style={{ maxWidth: 720, margin: '0 auto' }}>
-          <h2>Krok 3 — Fakturačné údaje</h2>
+          <h2>Krok 3 — Fakturačné údaje SVB / správcu</h2>
           <p>
-            Tieto údaje sa automaticky použijú na každú vystavenú faktúru pre vlastníkov.
-            Môžete ich kedykoľvek upraviť v <strong>Nastaveniach budovy</strong>. Polia s hviezdičkou sú povinné.
+            Tieto údaje patria <strong>vám ako fakturujúcej entite</strong> (SVB, BD, správcovská firma) —
+            <strong>nemusia byť rovnaké ako názov budovy</strong>. Ak spravujete viac budov, tieto údaje sa
+            uložia ku každej budove samostatne (môžete ich pri ďalšej budove zopakovať alebo zmeniť).
+          </p>
+          <p style={{ fontSize: '0.875rem', color: 'var(--fg-muted)', marginTop: '-0.5rem' }}>
+            Najrýchlejší spôsob: zadajte <strong>IČO</strong> nižšie — meno, DIČ, IČ DPH a adresa sa doplnia z RPO automaticky.
           </p>
           <form onSubmit={submitBilling}>
             <label>
-              Názov SVB / BD na faktúre <span style={{ color: 'var(--urgent)' }}>*</span>
-              <input required value={billing.billingName} onChange={(e) => setBilling({ ...billing, billingName: e.target.value })} placeholder={building.name} />
+              Názov SVB / BD / správcu na faktúre <span style={{ color: 'var(--urgent)' }}>*</span>
+              <input
+                required
+                value={billing.billingName}
+                onChange={(e) => setBilling({ ...billing, billingName: e.target.value })}
+                placeholder="napr. SVB Hviezdoslavova 12 / Správa, s. r. o."
+                autoComplete="off"
+              />
+              <CompanyNameSearch
+                query={billing.billingName}
+                country="SK"
+                onPick={(r) => {
+                  setBilling((b) => ({
+                    ...b,
+                    billingName: r.name ?? b.billingName,
+                    billingIco: r.ico ?? b.billingIco,
+                    billingAddress: r.address ?? b.billingAddress,
+                  }));
+                }}
+              />
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
               <label>
                 IČO <span style={{ color: 'var(--urgent)' }}>*</span>
-                <input required value={billing.billingIco} onChange={(e) => setBilling({ ...billing, billingIco: e.target.value })} placeholder="12345678" />
+                <input
+                  required
+                  value={billing.billingIco}
+                  onChange={(e) => { setBilling({ ...billing, billingIco: e.target.value }); setIcoApplied(false); }}
+                  placeholder="12345678"
+                  inputMode="numeric"
+                  maxLength={8}
+                />
               </label>
               <label>
                 DIČ
@@ -811,9 +855,16 @@ function Onboarding({ me, onDone }: { me: Me; onDone: (me: Me) => void }) {
                 <input value={billing.billingVatId} onChange={(e) => setBilling({ ...billing, billingVatId: e.target.value })} placeholder="SK2023456789" />
               </label>
             </div>
+            {/* IcoLookupHint na celom rade pod IČO trojstĺpcom */}
+            <IcoLookupHint
+              ico={billing.billingIco}
+              country={building.country === 'CZ' ? 'CZ' : 'SK'}
+              onApply={applyRegistryToBilling}
+              applied={icoApplied}
+            />
             <label>
               Fakturačná adresa <span style={{ color: 'var(--urgent)' }}>*</span>
-              <input required value={billing.billingAddress} onChange={(e) => setBilling({ ...billing, billingAddress: e.target.value })} />
+              <input required value={billing.billingAddress} onChange={(e) => setBilling({ ...billing, billingAddress: e.target.value })} placeholder="Hviezdoslavova 12, 811 02 Bratislava" />
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.75rem' }}>
               <label>

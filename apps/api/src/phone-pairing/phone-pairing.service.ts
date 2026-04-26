@@ -71,6 +71,22 @@ export class PhonePairingService {
     };
   }
 
+  /**
+   * Vráti binárny obsah fotky zo session — používa frontend pre OCR re-upload
+   * alebo na zobrazenie thumbnailu.
+   * Endpoint vyžaduje auth (predseda) a kontrolu prístupu k budove.
+   */
+  async getFileContent(user: AuthedUser, sessionId: string, keyIndex: number) {
+    const s = await this.prisma.phonePairingSession.findUnique({ where: { id: sessionId } });
+    if (!s) throw new NotFoundException();
+    await this.assertBuildingAccess(user, s.buildingId);
+    const keys = s.uploadedKeys ? s.uploadedKeys.split(',').filter(Boolean) : [];
+    const key = keys[keyIndex];
+    if (!key) throw new NotFoundException('Žiadna fotka v tejto session.');
+    const buf = await this.storage.getObject(key);
+    return { key, buffer: buf };
+  }
+
   /** Verejné — mobil otvorí token URL. Vráti meta info bez auth. */
   async resolveToken(token: string) {
     const s = await this.prisma.phonePairingSession.findUnique({ where: { token } });

@@ -344,10 +344,23 @@ export function NewIncomingInvoicePage({ buildingId }: { buildingId: string }) {
       {mode === 'phone' && (
         <PhonePairWidget
           buildingId={buildingId}
-          onPhotoReceived={(storageKey) => {
-            setMode('manual');
-            // Phone-pair nahral fotku. Po kliku na "Pokračovať" spustíme OCR — už máme storage key
-            // Pre teraz: predseda klikne ručne potvrdenie, OCR sa spustí ak chce
+          onPhotoReceived={async ({ sessionId, keyIndex }) => {
+            // Po prijatí fotky z mobilu: stiahni binarne dáta + spusti OCR + pre-fill formulár
+            setBusy(true);
+            try {
+              const fileData = await api<{ base64: string; key: string; sizeBytes: number }>(
+                `/phone-pairing/${sessionId}/file/${keyIndex}`,
+              );
+              // Convert base64 → File pre formData upload
+              const blob = await (await fetch(`data:image/jpeg;base64,${fileData.base64}`)).blob();
+              const file = new File([blob], `phone-${Date.now()}.jpg`, { type: 'image/jpeg' });
+              await ocrUpload(file);
+            } catch (e) {
+              setErr('OCR z mobilnej fotky zlyhal: ' + (e as Error).message);
+              setMode('manual');
+            } finally {
+              setBusy(false);
+            }
           }}
           onCancel={() => setMode('choose')}
         />
@@ -529,7 +542,7 @@ function PhotoUpload({ onUpload, busy, err, onCancel }: {
 ============================================================= */
 function PhonePairWidget({ buildingId, onPhotoReceived, onCancel }: {
   buildingId: string;
-  onPhotoReceived: (storageKey: string) => void;
+  onPhotoReceived: (info: { sessionId: string; keyIndex: number; storageKey: string }) => void;
   onCancel: () => void;
 }) {
   const [session, setSession] = useState<{ id: string; pairUrl: string; ttlSeconds: number } | null>(null);
@@ -565,9 +578,15 @@ function PhonePairWidget({ buildingId, onPhotoReceived, onCancel }: {
           `/phone-pairing/${session.id}/status`,
         );
         if (status.uploadedKeys.length > keysReceived.length) {
-          setKeysReceived(status.uploadedKeys);
-          if (status.uploadedKeys.length > 0) {
-            onPhotoReceived(status.uploadedKeys[status.uploadedKeys.length - 1]);
+          const newKeys = status.uploadedKeys;
+          setKeysReceived(newKeys);
+          if (newKeys.length > 0 && session) {
+            const lastIdx = newKeys.length - 1;
+            onPhotoReceived({
+              sessionId: session.id,
+              keyIndex: lastIdx,
+              storageKey: newKeys[lastIdx],
+            });
           }
         }
       } catch { /* ignore polling errors */ }
