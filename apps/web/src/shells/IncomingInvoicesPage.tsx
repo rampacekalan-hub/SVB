@@ -398,7 +398,8 @@ export function NewIncomingInvoicePage({ buildingId }: { buildingId: string }) {
       )}
 
       {mode === 'manual' && (
-        <>
+        <div className={pendingAttachment ? 'ii-form-with-preview' : ''}>
+          <div className="ii-form-col">
           {busy && !ocrPreview && (
             <div className="ocr-running">
               <span className="ico-hint-spinner" />
@@ -602,9 +603,44 @@ export function NewIncomingInvoicePage({ buildingId }: { buildingId: string }) {
               </div>
             )}
           </Form>
-        </>
+          </div>
+          {pendingAttachment && <PdfPreview file={pendingAttachment} />}
+        </div>
       )}
     </>
+  );
+}
+
+/* =============================================================
+   PdfPreview — náhľad PDF / image v pravej kolóne pri pre-fille
+============================================================= */
+function PdfPreview({ file }: { file: File }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    const u = URL.createObjectURL(file);
+    setUrl(u);
+    return () => URL.revokeObjectURL(u);
+  }, [file]);
+  if (!url) return null;
+  const isImage = file.type.startsWith('image/');
+  return (
+    <aside className="ii-preview-col">
+      <div className="ii-preview-head">
+        <Icon name="file" size={16} />
+        <span>{file.name}</span>
+        <span className="ii-preview-size">{(file.size / 1024).toFixed(0)} kB</span>
+      </div>
+      <div className="ii-preview-frame">
+        {isImage ? (
+          <img src={url} alt="Náhľad faktúry" />
+        ) : (
+          <iframe src={url} title="PDF náhľad" />
+        )}
+      </div>
+      <a href={url} target="_blank" rel="noreferrer" className="ii-preview-open">
+        Otvoriť v novom okne →
+      </a>
+    </aside>
   );
 }
 

@@ -126,43 +126,73 @@ export class OcrService {
   parse(rawText: string, confidence = 1): OcrExtraction {
     const text = rawText.replace(/\s+/g, ' ');
 
-    // IBAN — SK / CZ + 22 alfanumerických
-    const ibanMatch = text.match(/\b(SK\d{2}\s*\d{4}\s*\d{4}\s*\d{4}\s*\d{4}|CZ\d{2}\s*\d{4}\s*\d{4}\s*\d{4}\s*\d{4})\b/i);
-    const iban = ibanMatch ? ibanMatch[1].replace(/\s+/g, '').toUpperCase() : undefined;
+    // IBAN — SK / CZ s alebo bez medzier
+    const ibanMatch = text.match(/\b(SK\d{2}[\s]*[\d\s]{18,24}|CZ\d{2}[\s]*[\d\s]{18,24})\b/i);
+    let iban: string | undefined;
+    if (ibanMatch) {
+      const cleaned = ibanMatch[1].replace(/\s+/g, '').toUpperCase();
+      if (cleaned.length === 24) iban = cleaned; // SK/CZ IBAN je presne 24 znakov
+    }
 
-    // IČO — slovo "IČO" alebo "IC:" + 8 číslic; alebo samostatných 8 číslic za "Dodávateľ" oblasťou
-    const icoMatch = text.match(/I[ČC]O[\s:]*(\d{8})\b/i) || text.match(/\bD[ICČ]O?[\s:]*(\d{8})\b/i);
+    // IČO — 8 číslic
+    const icoMatch = text.match(/I[ČC]O[\s:]*(\d{8})\b/i);
     const ico = icoMatch ? icoMatch[1] : undefined;
 
-    // DIČ — 10 číslic
+    // DIČ — 10 číslic, ale nie ICDPH (SK + 10)
     const dicMatch = text.match(/D[ICČ][\s:]*(\d{10})\b/i);
     const dic = dicMatch ? dicMatch[1] : undefined;
 
     // VS — variabilný symbol
-    const vsMatch = text.match(/(?:VS|Variabiln[ýy] symbol|Var\.\s*sym\.)[\s:]*(\d+)/i);
+    const vsMatch = text.match(/(?:VS|Variabiln[ýy]\s+symbol|Var\.\s*sym\.|V\.\s*S\.?)[\s:]*(\d+)/i);
     const variableSymbol = vsMatch ? vsMatch[1] : undefined;
 
-    // Dátum splatnosti — DD.MM.YYYY
-    const splatDate = this.matchDate(
-      text.match(/Splatnos[tť][\s:]*(\d{1,2}[.\s/-]\d{1,2}[.\s/-]\d{2,4})/i)?.[1]
-        ?? text.match(/Due\s*date[\s:]*(\d{1,2}[.\s/-]\d{1,2}[.\s/-]\d{2,4})/i)?.[1],
+    // Dátum splatnosti — viac variantov
+    const dueDate = this.matchDate(
+      text.match(/(?:Splatnos[tť]\s+(?:do|faktur[yz])?|Termín\s+splatnosti|D[áa]tum\s+splatnosti|Splatn[áé]\s+do|Due\s*date)[\s:]*(\d{1,2}[.\s/-]\d{1,2}[.\s/-]\d{2,4})/i)?.[1]
+        ?? text.match(/Splatnos[tť][\s:.]+(\d{1,2}[.\s/-]\d{1,2}[.\s/-]\d{2,4})/i)?.[1],
     );
 
     // Dátum vystavenia
     const issueDate = this.matchDate(
-      text.match(/D[áa]tum\s+vystavenia[\s:]*(\d{1,2}[.\s/-]\d{1,2}[.\s/-]\d{2,4})/i)?.[1]
-        ?? text.match(/Vystaven[áé][\s:]*(\d{1,2}[.\s/-]\d{1,2}[.\s/-]\d{2,4})/i)?.[1],
+      text.match(/(?:D[áa]tum\s+vystavenia|Vystaven[áé]\s+(?:dňa|d\.)?|D[áa]tum\s+vyhotovenia|Issue\s*date)[\s:]*(\d{1,2}[.\s/-]\d{1,2}[.\s/-]\d{2,4})/i)?.[1],
     );
 
-    // Suma — najväčšie číslo s desatinnou čiarkou alebo bodkou + €/EUR/Kč
-    const amounts = Array.from(text.matchAll(/(\d{1,3}(?:[ .]\d{3})*[,.]\d{2})\s*(?:€|EUR|Kč|CZK)?/gi))
-      .map((m) => parseFloat(m[1].replace(/[\s.]/g, '').replace(',', '.')))
-      .filter((n) => !isNaN(n) && n > 0);
-    const amount = amounts.length ? Math.max(...amounts).toFixed(2) : undefined;
+    // Suma — preferuj sumy pri "Spolu k úhrade" / "Celkom" / "Total"
+    let amount: string | undefined;
+    const totalContextMatch = text.match(/(?:Spolu\s+k\s+úhrade|Celkom\s+k\s+úhrade|K\s+úhrade|Sum[au]\s+celkom|Spolu\s+s?\s*DPH|Celkov[áa]\s+sum[ay]|Total\s+amount)[\s:]*(\d{1,3}(?:[\s.]\d{3})*[,.]\d{2})/i);
+    if (totalContextMatch) {
+      amount = parseFloat(totalContextMatch[1].replace(/[\s.]/g, '').replace(',', '.')).toFixed(2);
+    } else {
+      // Fallback — najväčšie číslo s desatinnou čiarkou + €/EUR
+      const amounts = Array.from(text.matchAll(/(\d{1,3}(?:[\s.]\d{3})*[,.]\d{2})\s*(?:€|EUR|Kč|CZK)/gi))
+        .map((m) => parseFloat(m[1].replace(/[\s.]/g, '').replace(',', '.')))
+        .filter((n) => !isNaN(n) && n > 0);
+      if (amounts.length) amount = Math.max(...amounts).toFixed(2);
+    }
 
-    // Číslo faktúry — heuristika: za "Faktúra č." / "FA č." / "Číslo faktúry"
-    const invMatch = text.match(/(?:Fakt[uú]ra\s*č\.?|FA\s*č\.?|Č[íi]slo\s*fakt[uú]ry)[\s:]*([A-Z0-9./-]+)/i);
-    const invoiceNumber = invMatch ? invMatch[1].replace(/[.,]$/, '') : undefined;
+    // Číslo faktúry — viac variantov + filter na rozumné formáty (nie celé vety)
+    let invoiceNumber: string | undefined;
+    const invPatterns = [
+      /(?:Fakt[uú]ra\s*č(?:íslo|\.|:))[\s:]*([A-Z0-9][A-Z0-9./_-]{1,30})/i,
+      /(?:FA\s*č\.|FA-|Č[íi]slo\s*fakt[uú]ry|Č\.\s*fakt[uú]ry|Invoice\s*No\.?)[\s:]*([A-Z0-9][A-Z0-9./_-]{1,30})/i,
+      /(?:Fakt[uú]ra\s*[-–]\s*da[ňn]ov[ýy]\s+doklad\s*č\.?)[\s:]*([A-Z0-9][A-Z0-9./_-]{1,30})/i,
+      /(?:Da[ňn]ov[ýy]\s+doklad\s*č(?:\.|íslo))[\s:]*([A-Z0-9][A-Z0-9./_-]{1,30})/i,
+    ];
+    for (const re of invPatterns) {
+      const m = text.match(re);
+      if (m) {
+        const candidate = m[1].replace(/[.,)]$/g, '').trim();
+        // Filter: musí mať aspoň 1 číslicu, max 30 znakov, nesmie obsahovať medzery
+        if (/\d/.test(candidate) && candidate.length <= 30 && !/\s/.test(candidate)) {
+          invoiceNumber = candidate;
+          break;
+        }
+      }
+    }
+    // Fallback — ak invoice number nenašiel ale VS áno, použij VS
+    if (!invoiceNumber && variableSymbol) {
+      invoiceNumber = variableSymbol;
+    }
 
     return {
       rawText,
@@ -172,7 +202,7 @@ export class OcrService {
       ico,
       dic,
       variableSymbol,
-      dueDate: splatDate,
+      dueDate,
       issueDate,
       invoiceNumber,
     };
