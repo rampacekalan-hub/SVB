@@ -165,7 +165,16 @@ body:not([data-scroll='top']) .topbar {
   font-size: 1.125rem;
   letter-spacing: -0.01em;
   color: var(--fg);
+  text-decoration: none;
 }
+/* Floory logo — komponent renderuje vlastný spacing, nepotrebuje brand-mark wrapper */
+.topbar .brand-floory {
+  gap: 0;
+  padding: 0.125rem 0;
+  text-decoration: none;
+  color: inherit;
+}
+.topbar .brand-floory:hover { opacity: 0.85; }
 
 .topbar .brand-mark {
   width: 32px;

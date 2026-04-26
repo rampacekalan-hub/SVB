@@ -1,0 +1,110 @@
+/* Floory Design Tokens — B2B serious purple
+   ============================================
+   Drop into your SVB codebase as the source of truth.
+   Use the CSS custom properties; they cascade everywhere.
+*/
+
+:root {
+  /* ── Brand color: muted indigo/violet, B2B trust ─────────────── */
+  --floory-50:  #F4F2FB;
+  --floory-100: #E6E2F5;
+  --floory-200: #CCC5EB;
+  --floory-300: #AEA3DD;
+  --floory-400: #8B7DCB;
+  --floory-500: #6B5BB8;   /* primary brand */
+  --floory-600: #564898;
+  --floory-700: #443879;
+  --floory-800: #2F2858;
+  --floory-900: #1B1738;
+  --floory-950: #0E0C20;
+
+  /* ── Neutral, slightly warm to pair with purple ──────────────── */
+  --ink-950: #0E0C18;
+  --ink-900: #1A1726;
+  --ink-700: #3B3849;
+  --ink-500: #6E6B7E;
+  --ink-300: #B8B5C4;
+  --ink-100: #E9E7F0;
+  --ink-50:  #F7F6FA;
+  --paper:   #FFFFFF;
+
+  /* ── Semantic ───────────────────────────────────────────────── */
+  --success-500: #2F8C5F;
+  --warning-500: #C58A2E;
+  --danger-500:  #B5394A;
+  --info-500:    var(--floory-500);
+
+  /* ── Surface roles ───────────────────────────────────────────── */
+  --surface-bg:        var(--ink-50);
+  --surface-card:      var(--paper);
+  --surface-elevated:  var(--paper);
+  --surface-inverse:   var(--floory-950);
+
+  /* ── Borders & dividers ─────────────────────────────────────── */
+  --border-subtle: rgba(15, 12, 32, 0.08);
+  --border-strong: rgba(15, 12, 32, 0.16);
+
+  /* ── Typography ─────────────────────────────────────────────── */
+  --font-display: 'Space Grotesk', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-body:    'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* type scale */
+  --t-xs:   12px;
+  --t-sm:   14px;
+  --t-base: 16px;
+  --t-lg:   18px;
+  --t-xl:   20px;
+  --t-2xl:  24px;
+  --t-3xl:  30px;
+  --t-4xl:  38px;
+  --t-5xl:  48px;
+  --t-6xl:  60px;
+
+  /* ── Radii ──────────────────────────────────────────────────── */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+
+  /* ── Shadows ────────────────────────────────────────────────── */
+  --shadow-sm:  0 1px 2px rgba(15, 12, 32, 0.06);
+  --shadow-md:  0 4px 14px rgba(15, 12, 32, 0.08);
+  --shadow-lg:  0 14px 40px rgba(15, 12, 32, 0.12);
+  --shadow-purple: 0 8px 24px rgba(107, 91, 184, 0.28);
+
+  /* ── Spacing scale ──────────────────────────────────────────── */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+  --s-16: 64px;
+  --s-20: 80px;
+}
+
+/* Optional dark theme — invert surface roles, brand stays */
+[data-theme="dark"] {
+  --surface-bg:       var(--floory-950);
+  --surface-card:     #18152C;
+  --surface-elevated: #221E3B;
+  --surface-inverse:  var(--paper);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --ink-950: #FFFFFF;
+  --ink-900: #F0EEF8;
+  --ink-700: #C7C4D6;
+  --ink-500: #8E8AA0;
+  --ink-300: #4A4760;
+  --ink-100: #2A2740;
+  --ink-50:  #1A1730;
+}
+
+/* Base resets that pair with the tokens */
+html { font-family: var(--font-body); color: var(--ink-900); background: var(--surface-bg); }
+.font-display { font-family: var(--font-display); letter-spacing: -0.025em; }
+.font-mono    { font-family: var(--font-mono); }

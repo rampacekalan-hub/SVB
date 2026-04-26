@@ -18,6 +18,7 @@ import { TermsPage, PrivacyPage, DpaPage } from './legal/LegalPages';
 import { StatusPage, ChangelogPage } from './legal/StatusAndChangelog';
 import { MarketingMenu } from './marketing/MarketingMenu';
 import { PhonePairUploadPage } from './shells/PhonePairUploadPage';
+import { FlooryLogo } from './components/FlooryLogo';
 import { IcoLookupHint } from './components/IcoLookup';
 import { CompanyNameSearch } from './components/CompanyNameSearch';
 import type { RegistryResult } from './hooks/useIcoLookup';
@@ -171,11 +172,8 @@ function Topbar({ me }: { me?: Me }) {
   return (
     <header className="topbar" role="banner">
       {me && <MobileMenu me={me} />}
-      <Link to="/" className="brand" aria-label="DomovPlus — domov">
-        <span className="brand-mark" aria-hidden="true">
-          <HomeIcon size={18} />
-        </span>
-        DomovPlus
+      <Link to="/" className="brand brand-floory" aria-label="Floory — domov">
+        <FlooryLogo size={26} />
       </Link>
       {isOnMarketing && <MarketingMenu />}
       <div className="row topbar-actions">
