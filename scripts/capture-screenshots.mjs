@@ -1,5 +1,5 @@
 /**
- * DomovPlus — Marketing screenshots cez Playwright.
+ * Floory — Marketing screenshots cez Playwright.
  *
  * Spustí headless Chromium, prihlási sa ako demo predseda, pozbiera screenshoty
  * jednotlivých sekcií appky a uloží ich do apps/web/public/screenshots/.
@@ -8,7 +8,7 @@
  *   1. Skontrolujte že beží:
  *        - API na :3100
  *        - Web na :5174
- *        - DB seedovaná (predseda@domovplus.local / DemoHeslo12345!)
+ *        - DB seedovaná (predseda@floory.local / DemoHeslo12345!)
  *   2. node scripts/capture-screenshots.mjs
  *
  * Výsledok: public/screenshots/{name}.png — použiteľné z marketing stránky.
@@ -23,10 +23,10 @@ const OUT_DIR = join(__dirname, '..', 'apps', 'web', 'public', 'screenshots');
 mkdirSync(OUT_DIR, { recursive: true });
 
 const WEB_URL = process.env.WEB_URL || 'http://localhost:5174';
-const EMAIL = process.env.DEMO_EMAIL || 'predseda@domovplus.local';
+const EMAIL = process.env.DEMO_EMAIL || 'predseda@floory.local';
 const PASSWORD = process.env.DEMO_PASSWORD || 'DemoHeslo12345!';
 
-console.log(`📸 DomovPlus screenshot capture`);
+console.log(`📸 Floory screenshot capture`);
 console.log(`   Web: ${WEB_URL}`);
 console.log(`   Out: ${OUT_DIR}`);
 
@@ -120,7 +120,7 @@ const mobile = await browser.newContext({
 const mpage = await mobile.newPage();
 
 // Try resident login (separate seed account if exists, otherwise reuse predseda)
-const RESIDENT_EMAIL = process.env.RESIDENT_EMAIL || 'vlastnik@domovplus.local';
+const RESIDENT_EMAIL = process.env.RESIDENT_EMAIL || 'vlastnik@floory.local';
 const RESIDENT_PASSWORD = process.env.RESIDENT_PASSWORD || 'DemoHeslo12345!';
 
 async function tryLogin(email, password) {

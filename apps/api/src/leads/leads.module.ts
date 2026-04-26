@@ -52,7 +52,7 @@ export class LeadsController {
       await this.mail
         .send({
           to: recipient,
-          subject: `DomovPlus — nový lead: ${dto.email}`,
+          subject: `Floory — nový lead: ${dto.email}`,
           text:
             `Nový záujem o pilot:\n\n` +
             `Email:  ${dto.email}\n` +

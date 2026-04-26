@@ -354,7 +354,7 @@ export class FinanceService {
       await this.mail
         .send({
           to: r.email,
-          subject: `DomovPlus — pripomenutie platby ${totalStr} € (byt ${apt.unitNumber})`,
+          subject: `Floory — pripomenutie platby ${totalStr} € (byt ${apt.unitNumber})`,
           text:
             `Dobrý deň ${r.firstName},\n\n` +
             `pripomíname vám neuhradené platby za byt ${apt.unitNumber} v budove ` +

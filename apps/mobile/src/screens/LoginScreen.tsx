@@ -21,7 +21,7 @@ import {
 import { colors, radius, space, typography, hitTarget } from '../theme';
 
 export function LoginScreen({ navigation }: any) {
-  const [email, setEmail] = useState('vlastnik@domovplus.local');
+  const [email, setEmail] = useState('vlastnik@floory.local');
   const [password, setPassword] = useState('DemoHeslo12345!');
   const [totpToken, setTotpToken] = useState('');
   const [mfa, setMfa] = useState(false);
@@ -44,7 +44,7 @@ export function LoginScreen({ navigation }: any) {
 
   async function biometricLogin() {
     const ok = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'Prihlásiť do DomovPlus',
+      promptMessage: 'Prihlásiť do Floory',
       fallbackLabel: 'Použiť heslo',
     });
     if (!ok.success) return;
@@ -102,7 +102,7 @@ export function LoginScreen({ navigation }: any) {
           <View style={styles.brandMark}>
             <Text style={styles.brandMarkText}>D+</Text>
           </View>
-          <Text style={styles.brandText}>DomovPlus</Text>
+          <Text style={styles.brandText}>Floory</Text>
         </View>
 
         <View style={styles.card}>
@@ -179,7 +179,7 @@ export function LoginScreen({ navigation }: any) {
 
           <View style={styles.demoHint}>
             <Text style={[t.subtle]}>
-              Demo · <Text style={{ fontWeight: '600' }}>vlastnik@domovplus.local</Text> /{' '}
+              Demo · <Text style={{ fontWeight: '600' }}>vlastnik@floory.local</Text> /{' '}
               <Text style={{ fontWeight: '600' }}>DemoHeslo12345!</Text>
             </Text>
           </View>

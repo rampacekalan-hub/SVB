@@ -57,7 +57,7 @@ export class VotingPdfService {
 
       doc.moveDown();
       doc.fontSize(8).text(
-        'Táto zápisnica bola vygenerovaná automaticky systémom DomovPlus. ' +
+        'Táto zápisnica bola vygenerovaná automaticky systémom Floory. ' +
           'Záznamy hlasov sú hash-reťazené (SHA-256) pre overenie integrity. ' +
           'Pre právnu silu pripojte elektronický podpis (XAdES) podľa vnútorného procesu SVB/SVJ.',
         { align: 'justify' },

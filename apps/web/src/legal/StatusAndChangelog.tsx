@@ -105,7 +105,7 @@ export function StatusPage() {
         <footer className="legal-footer">
           <p>
             Problém ktorý nevidíte na tejto stránke? Píšte na{' '}
-            <a href="mailto:support@domovplus.sk">support@domovplus.sk</a>.
+            <a href="mailto:support@floory.sk">support@floory.sk</a>.
           </p>
           <Link to="/" className="mk-btn mk-btn-secondary">← Späť na hlavnú stránku</Link>
         </footer>
@@ -231,7 +231,7 @@ export function ChangelogPage() {
         </nav>
         <h1 className="legal-h1">Čo je nové</h1>
         <p className="legal-lede">
-          História zmien v DomovPlus. Sledujte, čo pribúda, čo sa zlepšuje a čo sa opravilo.
+          História zmien v Floory. Sledujte, čo pribúda, čo sa zlepšuje a čo sa opravilo.
         </p>
 
         <div className="changelog-list">
@@ -253,7 +253,7 @@ export function ChangelogPage() {
         <footer className="legal-footer">
           <p>
             Máte feature request alebo chybu? Napíšte na{' '}
-            <a href="mailto:hello@domovplus.sk">hello@domovplus.sk</a>.
+            <a href="mailto:hello@floory.sk">hello@floory.sk</a>.
           </p>
           <Link to="/" className="mk-btn mk-btn-secondary">← Späť na hlavnú stránku</Link>
         </footer>

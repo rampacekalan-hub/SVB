@@ -118,11 +118,11 @@ export class MembersController {
     if (dto.email) {
       const building = await this.prisma.building.findUnique({ where: { id: buildingId }, select: { name: true } });
       const title = existing
-        ? `DomovPlus — boli ste pridaný do budovy ${building?.name}`
-        : `DomovPlus — pozvánka do budovy ${building?.name}`;
+        ? `Floory — boli ste pridaný do budovy ${building?.name}`
+        : `Floory — pozvánka do budovy ${building?.name}`;
       const body = existing
-        ? `Dobrý deň ${existing.firstName},\n\nBoli ste pridaný ako ${roleLabel(dto.role)} do budovy ${building?.name}. Prihláste sa na https://domovplus.sk/prihlasenie.\n\nDomovPlus`
-        : `Dobrý deň ${dto.inviteName ?? ''},\n\nPozývame vás do budovy ${building?.name} ako ${roleLabel(dto.role)}. Zaregistrujte sa aktivačným kódom: ${code}\n\nhttps://domovplus.sk/registracia\n\nDomovPlus`;
+        ? `Dobrý deň ${existing.firstName},\n\nBoli ste pridaný ako ${roleLabel(dto.role)} do budovy ${building?.name}. Prihláste sa na https://floory.sk/prihlasenie.\n\nFloory`
+        : `Dobrý deň ${dto.inviteName ?? ''},\n\nPozývame vás do budovy ${building?.name} ako ${roleLabel(dto.role)}. Zaregistrujte sa aktivačným kódom: ${code}\n\nhttps://floory.sk/registracia\n\nFloory`;
       await this.mail.send({ to: dto.email, subject: title, text: body }).catch(() => void 0);
     }
 

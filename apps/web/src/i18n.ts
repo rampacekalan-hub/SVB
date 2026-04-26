@@ -13,7 +13,7 @@ export type Locale = 'SK' | 'CS';
 type Dict = Record<string, string>;
 
 const sk: Dict = {
-  'app.title': 'DomovPlus',
+  'app.title': 'Floory',
   'nav.logout': 'Odhlásiť',
   'nav.seniorOn': 'Väčšie písmo',
   'nav.seniorOff': 'Normálne',
@@ -96,7 +96,7 @@ const sk: Dict = {
 };
 
 const cs: Dict = {
-  'app.title': 'DomovPlus',
+  'app.title': 'Floory',
   'nav.logout': 'Odhlásit',
   'nav.seniorOn': 'Větší písmo',
   'nav.seniorOff': 'Normální',

@@ -17,12 +17,12 @@ export interface SendMailInput {
  * V produkcii odporúčame **Postal** (self-hosted MTA, docker-compose.yml),
  * **Haraka** alebo čistý **Postfix + Dovecot**. Služba konfiguruje klienta
  * cez env premenné:
- *   SMTP_HOST           (napr. mail.domovplus.sk)
+ *   SMTP_HOST           (napr. mail.floory.sk)
  *   SMTP_PORT           (default 587 STARTTLS / 465 SMTPS)
  *   SMTP_SECURE         "true" pre 465, inak STARTTLS
  *   SMTP_USER
  *   SMTP_PASS
- *   MAIL_FROM           "DomovPlus <no-reply@domovplus.sk>"
+ *   MAIL_FROM           "Floory <no-reply@floory.sk>"
  *
  * Ak SMTP_HOST chýba (dev), emaily sa iba logujú do konzoly — žiadny skutočný
  * transport. Každý volajúci (napr. auth.service) tak môže volať sendMail()
@@ -32,7 +32,7 @@ export interface SendMailInput {
 export class MailService implements OnModuleInit {
   private readonly log = new Logger(MailService.name);
   private transporter: nodemailer.Transporter | null = null;
-  private fromAddress = 'DomovPlus <no-reply@domovplus.sk>';
+  private fromAddress = 'Floory <no-reply@floory.sk>';
 
   constructor(private readonly config: ConfigService) {}
 
@@ -80,18 +80,18 @@ export class MailService implements OnModuleInit {
   async sendPasswordReset(email: string, firstName: string, resetUrl: string) {
     return this.send({
       to: email,
-      subject: 'DomovPlus — obnovenie hesla',
+      subject: 'Floory — obnovenie hesla',
       text:
         `Dobrý deň ${firstName},\n\n` +
-        `dostali sme žiadosť o obnovenie hesla k vášmu účtu DomovPlus.\n` +
+        `dostali sme žiadosť o obnovenie hesla k vášmu účtu Floory.\n` +
         `Nové heslo si nastavíte na adrese:\n${resetUrl}\n\n` +
         `Odkaz platí 30 minút a dá sa použiť iba raz. Ak ste o zmenu nežiadali, tento email ignorujte.\n\n` +
-        `S pozdravom,\nDomovPlus`,
+        `S pozdravom,\nFloory`,
       html: `
         <div style="font-family:system-ui,sans-serif;max-width:560px;margin:0 auto;padding:24px">
           <h2 style="color:#0f766e">Obnovenie hesla</h2>
           <p>Dobrý deň ${escapeHtml(firstName)},</p>
-          <p>dostali sme žiadosť o obnovenie hesla k vášmu účtu DomovPlus.</p>
+          <p>dostali sme žiadosť o obnovenie hesla k vášmu účtu Floory.</p>
           <p style="margin:24px 0">
             <a href="${resetUrl}" style="background:#0f766e;color:white;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:600">
               Nastaviť nové heslo
@@ -101,7 +101,7 @@ export class MailService implements OnModuleInit {
             Odkaz platí 30 minút a dá sa použiť iba raz. Ak ste o zmenu nežiadali, tento email ignorujte.
           </p>
           <hr style="border:none;border-top:1px solid #e7e5e4;margin:24px 0" />
-          <p style="color:#a8a29e;font-size:12px">DomovPlus — správa bytového domu</p>
+          <p style="color:#a8a29e;font-size:12px">Floory — správa bytového domu</p>
         </div>
       `,
     });
@@ -110,9 +110,9 @@ export class MailService implements OnModuleInit {
   async sendActivationInvite(email: string, unitNumber: string, buildingName: string, code: string, registerUrl: string) {
     return this.send({
       to: email,
-      subject: `DomovPlus — pozvánka pre byt ${unitNumber}`,
+      subject: `Floory — pozvánka pre byt ${unitNumber}`,
       text:
-        `Vitajte v DomovPlus,\n\n` +
+        `Vitajte v Floory,\n\n` +
         `pre váš byt č. ${unitNumber} v budove ${buildingName} bol vygenerovaný aktivačný kód:\n` +
         `    ${code}\n\n` +
         `Registrácia: ${registerUrl}\n\n` +

@@ -17,7 +17,7 @@ export class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, info: ErrorInfo) {
     // V produkcii by sme toto poslali do Sentry/GlitchTip.
     // eslint-disable-next-line no-console
-    console.error('[DomovPlus ErrorBoundary]', error, info);
+    console.error('[Floory ErrorBoundary]', error, info);
   }
 
   render() {
@@ -27,7 +27,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <div className="err-card">
             <div className="err-icon">⚠️</div>
             <h1>Ups, niečo sa pokazilo</h1>
-            <p>Stránka narazila na chybu. Skúste obnoviť — ak chyba zostane, napíšte nám na hello@domovplus.sk.</p>
+            <p>Stránka narazila na chybu. Skúste obnoviť — ak chyba zostane, napíšte nám na hello@floory.sk.</p>
             <details className="err-details">
               <summary>Technický detail</summary>
               <code>{this.state.error?.message}</code>

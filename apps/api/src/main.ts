@@ -22,7 +22,7 @@ async function bootstrap() {
   });
 
   const config = new DocumentBuilder()
-    .setTitle('DomovPlus API')
+    .setTitle('Floory API')
     .setDescription('Self-hosted platforma pre správu bytových domov (SK/CZ)')
     .setVersion('0.1.0')
     .addBearerAuth()
@@ -32,7 +32,7 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
-  Logger.log(`DomovPlus API beží na porte ${port}`, 'Bootstrap');
+  Logger.log(`Floory API beží na porte ${port}`, 'Bootstrap');
   Logger.log(`OpenAPI docs: http://localhost:${port}/docs`, 'Bootstrap');
 }
 

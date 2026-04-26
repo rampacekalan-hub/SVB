@@ -4,7 +4,7 @@ import * as QRCode from 'qrcode';
 
 @Injectable()
 export class TotpService {
-  private readonly issuer = process.env.TOTP_ISSUER ?? 'DomovPlus';
+  private readonly issuer = process.env.TOTP_ISSUER ?? 'Floory';
 
   generateSecret(): string {
     return new Secret({ size: 20 }).base32;

@@ -288,7 +288,7 @@ function MockupChairman() {
   return (
     <RealMockup
       src="/screenshots/chairman-dashboard.png"
-      alt="DomovPlus chairman dashboard — KPI tiles, urgent ticket, otvorené hlasovanie"
+      alt="Floory chairman dashboard — KPI tiles, urgent ticket, otvorené hlasovanie"
     />
   );
 }
@@ -299,7 +299,7 @@ function MockupResident() {
       <div className="phone-lg-frame">
         <div className="phone-lg-notch" />
         <div className="phone-lg-screen-img">
-          <img src="/screenshots/mobile-home.png" alt="DomovPlus resident view — faktúra QR, hlasovanie z mobilu" />
+          <img src="/screenshots/mobile-home.png" alt="Floory resident view — faktúra QR, hlasovanie z mobilu" />
         </div>
       </div>
     </div>
@@ -310,7 +310,7 @@ function MockupVoting() {
   return (
     <RealMockup
       src="/screenshots/chairman-voting.png"
-      alt="DomovPlus voting screen — quorum tracker, vote counts, status"
+      alt="Floory voting screen — quorum tracker, vote counts, status"
     />
   );
 }
@@ -323,7 +323,7 @@ function RealMockup({ src, alt }: { src: string; alt: string }) {
         <span className="mockup-dot" style={{ background: '#fc6058' }} />
         <span className="mockup-dot" style={{ background: '#fed84b' }} />
         <span className="mockup-dot" style={{ background: '#36cd4d' }} />
-        <span className="mockup-url">domovplus.sk</span>
+        <span className="mockup-url">floory.sk</span>
       </div>
       <div className="mockup-real-img">
         <img src={src} alt={alt} loading="lazy" />
@@ -624,7 +624,7 @@ function LeadMagnet() {
       // Trigger download
       const link = document.createElement('a');
       link.href = '/checklist-prvej-elektronickej-schodze.pdf';
-      link.download = 'DomovPlus-checklist-prvej-elektronickej-schodze.pdf';
+      link.download = 'Floory-checklist-prvej-elektronickej-schodze.pdf';
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -708,8 +708,8 @@ function DemoCall() {
               </ul>
             </div>
             <div className="democall-right">
-              <a href="mailto:hello@domovplus.sk?subject=Demo DomovPlus" className="mk-btn mk-btn-primary democall-btn">
-                📧 hello@domovplus.sk
+              <a href="mailto:hello@floory.sk?subject=Demo Floory" className="mk-btn mk-btn-primary democall-btn">
+                📧 hello@floory.sk
               </a>
               <a href="tel:+421911000000" className="mk-btn mk-btn-secondary democall-btn">
                 📞 +421 911 000 000
@@ -751,7 +751,7 @@ function FinalCTA() {
       });
       setSent(true);
     } catch {
-      setErr('Odoslanie zlyhalo. Napíšte priamo na hello@domovplus.sk.');
+      setErr('Odoslanie zlyhalo. Napíšte priamo na hello@floory.sk.');
     } finally {
       setBusy(false);
     }
@@ -804,7 +804,7 @@ function Footer() {
                   <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
                 </svg>
               </span>
-              <strong>DomovPlus</strong>
+              <strong>Floory</strong>
             </div>
             <p className="mk-footer-tagline" style={{ whiteSpace: 'pre-line' }}>{c.footer.tagline}</p>
             <div className="mk-footer-badges">

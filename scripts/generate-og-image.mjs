@@ -197,8 +197,8 @@ const html = `
           <path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" stroke="white" stroke-width="2" stroke-linejoin="round" />
         </svg>
       </div>
-      <div class="brand">DomovPlus</div>
-      <div class="url">domovplus.sk</div>
+      <div class="brand">Floory</div>
+      <div class="url">floory.sk</div>
     </div>
   </div>
 
@@ -207,7 +207,7 @@ const html = `
       <span class="mockup-dot" style="background:#fc6058"></span>
       <span class="mockup-dot" style="background:#fed84b"></span>
       <span class="mockup-dot" style="background:#36cd4d"></span>
-      <span class="mockup-url">domovplus.sk/b/hviezdoslavova-12</span>
+      <span class="mockup-url">floory.sk/b/hviezdoslavova-12</span>
     </div>
     <div class="mockup-body">
       <div>

@@ -27,7 +27,7 @@ export default function App() {
       <StatusBar style="auto" />
       <Stack.Navigator initialRouteName={loggedIn ? 'Home' : 'Login'}>
         <Stack.Screen name="Login" component={LoginScreen} options={{ title: 'Prihlásenie' }} />
-        <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'DomovPlus' }} />
+        <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'Floory' }} />
         <Stack.Screen name="Voting" component={VotingScreen} options={{ title: 'Hlasovanie' }} />
       </Stack.Navigator>
     </NavigationContainer>

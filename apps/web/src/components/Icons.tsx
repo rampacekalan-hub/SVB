@@ -1,5 +1,5 @@
 /**
- * DomovPlus icon set — Lucide-style inline SVG.
+ * Floory icon set — Lucide-style inline SVG.
  *
  * Bez externej knižnice. Každá ikona je minimalistická
  * (24×24 viewBox, strokeWidth 2, stroke-linecap round) — konzistentná línia.

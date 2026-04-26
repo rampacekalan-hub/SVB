@@ -25,7 +25,7 @@ const doc = new PDFDocument({
   margins: { top: 60, bottom: 60, left: 60, right: 60 },
   info: {
     Title: 'Checklist prvej elektronickej schôdze SVB',
-    Author: 'DomovPlus',
+    Author: 'Floory',
     Subject: 'Návod pre predsedov SVB / BD na zavedenie elektronického hlasovania',
   },
 });
@@ -49,7 +49,7 @@ doc.fillColor(FG).fontSize(13).font('Helvetica').moveDown(8)
 
 doc.moveDown(2);
 doc.fontSize(10).fillColor(MUTED)
-  .text('Aktualizované 2026  ·  Pre Slovenskú a Českú republiku  ·  Vydáva DomovPlus', { lineGap: 2 });
+  .text('Aktualizované 2026  ·  Pre Slovenskú a Českú republiku  ·  Vydáva Floory', { lineGap: 2 });
 
 // Veľký checklist preview
 doc.moveDown(3);
@@ -102,8 +102,8 @@ para(
 doc.moveDown(0.5);
 quoteBlock(
   'Schôdza vlastníkov bytov a nebytových priestorov v dome [adresa, súpisné číslo] svojím uznesením prijatým nadpolovičnou ' +
-  'väčšinou hlasov všetkých vlastníkov\n\nrozhoduje\n\no zavedení elektronického hlasovania prostredníctvom platformy DomovPlus ' +
-  '(domovplus.sk) ako rovnocenného spôsobu hlasovania popri listinnom hlasovaní.\n\n' +
+  'väčšinou hlasov všetkých vlastníkov\n\nrozhoduje\n\no zavedení elektronického hlasovania prostredníctvom platformy Floory ' +
+  '(floory.sk) ako rovnocenného spôsobu hlasovania popri listinnom hlasovaní.\n\n' +
   'Listinný hlas má pri kolízii prednosť pred elektronickým. Predseda spoločenstva je poverený zriadením elektronickej ' +
   'evidencie vlastníkov a vystavením aktivačných kódov.'
 );
@@ -125,7 +125,7 @@ const weeks = [
     t: '4 týždne pred',
     items: [
       'Pripraviť program schôdze (PDF)',
-      'Vytvoriť budovu v DomovPlus + importovať byty z Excelu',
+      'Vytvoriť budovu v Floory + importovať byty z Excelu',
       'Vygenerovať aktivačné kódy pre vlastníkov (PDF na vytlačenie do schránok)',
     ],
   },
@@ -149,7 +149,7 @@ const weeks = [
     t: 'Deň schôdze',
     items: [
       'Prijať uznesenie o elektronickom hlasovaní (ak ešte nie je platné)',
-      'Otvoriť hlavné hlasovanie cez DomovPlus počas schôdze (uzávierka napr. o 7 dní)',
+      'Otvoriť hlavné hlasovanie cez Floory počas schôdze (uzávierka napr. o 7 dní)',
       'Vlastníci hlasujú cez mobil priamo na schôdzi alebo do uzávierky',
       'Listinné hlasovacie lístky predseda zapisuje do appky',
     ],
@@ -183,7 +183,7 @@ para(
 
 bullet([
   'Vlastník bez prístupu k internetu odovzdá vyplnený lístok predsedovi alebo zapisovateľovi',
-  'Predseda zapíše papierový hlas do DomovPlus pred uzávierkou (vlastná funkcia „Listinný hlas")',
+  'Predseda zapíše papierový hlas do Floory pred uzávierkou (vlastná funkcia „Listinný hlas")',
   'Systém automaticky uprednostní listinný pred elektronickým — bez ohľadu na poradie zaznamenania',
   'Zápisnica obsahuje samostatnú sekciu pre papierové hlasy aj s podpismi',
 ]);
@@ -215,11 +215,11 @@ doc.fontSize(13).font('Helvetica').moveDown(0.5)
 doc.fillColor(FG).fontSize(12).font('Helvetica');
 const contactY = 240;
 doc.fontSize(11).font('Helvetica-Bold').fillColor(TEAL).text('KONTAKT', 60, contactY);
-doc.fillColor(FG).fontSize(13).font('Helvetica').text('hello@domovplus.sk', 60, contactY + 20);
+doc.fillColor(FG).fontSize(13).font('Helvetica').text('hello@floory.sk', 60, contactY + 20);
 doc.text('+421 911 000 000', 60, contactY + 42);
 
 doc.fontSize(11).font('Helvetica-Bold').fillColor(TEAL).text('WEB', 60, contactY + 80);
-doc.fillColor(FG).fontSize(13).font('Helvetica').text('https://domovplus.sk', 60, contactY + 100);
+doc.fillColor(FG).fontSize(13).font('Helvetica').text('https://floory.sk', 60, contactY + 100);
 
 doc.fontSize(11).font('Helvetica-Bold').fillColor(TEAL).text('PRACOVNÝ ČAS', 60, contactY + 140);
 doc.fillColor(FG).fontSize(13).font('Helvetica').text('Po–Pi · 9:00 – 17:00 · odpoveď do 24 h', 60, contactY + 160);
@@ -230,10 +230,10 @@ doc.roundedRect(60, boxY, doc.page.width - 120, 140, 12).fill(TEAL_SOFT);
 doc.fillColor(TEAL).fontSize(14).font('Helvetica-Bold')
   .text('🎮 Vyskúšajte demo bez registrácie', 80, boxY + 24);
 doc.fillColor(FG).fontSize(11).font('Helvetica')
-  .text('Predvyplnená budova s 12 bytmi, hlasovaniami, faktúrami. Žiadny účet, hneď použiteľné.\n\nNa domovplus.sk kliknite "Vyskúšať demo".', 80, boxY + 50, { width: doc.page.width - 160, lineGap: 3 });
+  .text('Predvyplnená budova s 12 bytmi, hlasovaniami, faktúrami. Žiadny účet, hneď použiteľné.\n\nNa floory.sk kliknite "Vyskúšať demo".', 80, boxY + 50, { width: doc.page.width - 160, lineGap: 3 });
 
 doc.fillColor(MUTED).fontSize(9).text(
-  '© 2026 DomovPlus — Operačný systém pre bytový dom · SR / ČR · Self-hosted, GDPR-compliant',
+  '© 2026 Floory — Operačný systém pre bytový dom · SR / ČR · Self-hosted, GDPR-compliant',
   60, doc.page.height - 50,
   { width: doc.page.width - 120, align: 'center' },
 );

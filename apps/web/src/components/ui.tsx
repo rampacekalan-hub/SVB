@@ -1,5 +1,5 @@
 /**
- * DomovPlus — Canonical UI components
+ * Floory — Canonical UI components
  *
  * Každá karta, tlačidlo a status v aplikácii má prejsť cez tento súbor.
  * Cieľ: konzistentný vizuál naprieč rolami (predseda / vlastník / správca)

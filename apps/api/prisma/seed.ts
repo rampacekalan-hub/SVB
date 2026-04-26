@@ -4,7 +4,7 @@ import * as argon2 from 'argon2';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seeding DomovPlus...');
+  console.log('Seeding Floory...');
 
   const passwordHash = await argon2.hash('DemoHeslo12345!');
 
@@ -44,10 +44,10 @@ async function main() {
 
   // --- Používatelia
   const chairman = await prisma.user.upsert({
-    where: { email: 'predseda@domovplus.local' },
+    where: { email: 'predseda@floory.local' },
     update: {},
     create: {
-      email: 'predseda@domovplus.local',
+      email: 'predseda@floory.local',
       passwordHash,
       firstName: 'Jana',
       lastName: 'Predsedová',
@@ -75,10 +75,10 @@ async function main() {
   });
 
   const owner = await prisma.user.upsert({
-    where: { email: 'vlastnik@domovplus.local' },
+    where: { email: 'vlastnik@floory.local' },
     update: {},
     create: {
-      email: 'vlastnik@domovplus.local',
+      email: 'vlastnik@floory.local',
       passwordHash,
       firstName: 'Peter',
       lastName: 'Vlastník',
@@ -336,8 +336,8 @@ async function main() {
 
   console.log('Seed hotovo.');
   console.log('Login pre testovanie:');
-  console.log('  predseda@domovplus.local / DemoHeslo12345!');
-  console.log('  vlastnik@domovplus.local / DemoHeslo12345!');
+  console.log('  predseda@floory.local / DemoHeslo12345!');
+  console.log('  vlastnik@floory.local / DemoHeslo12345!');
   console.log('Aktivačný kód pre registráciu bytu 03: DEMO-ACT-003');
 }
 

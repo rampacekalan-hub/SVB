@@ -143,7 +143,7 @@ export class RevisionsService {
         await this.mail
           .send({
             to: u.email,
-            subject: `DomovPlus — pripomienka revízie: ${r.title}`,
+            subject: `Floory — pripomienka revízie: ${r.title}`,
             text:
               `Dobrý deň ${u.firstName},\n\n` +
               `revízia "${r.title}" v budove ${r.building.name} je splatná o ${daysLeft} dní ` +
@@ -151,7 +151,7 @@ export class RevisionsService {
               (r.contractorName
                 ? `Kontakt: ${r.contractorName} ${r.contractorPhone ?? ''} ${r.contractorEmail ?? ''}\n`
                 : 'Kontakt: dodávateľ ešte nie je uložený.\n') +
-              `\nDomovPlus`,
+              `\nFloory`,
           })
           .catch(() => void 0);
         await this.push

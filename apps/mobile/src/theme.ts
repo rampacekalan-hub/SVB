@@ -1,5 +1,5 @@
 /**
- * DomovPlus mobile design tokens — zladené s webom.
+ * Floory mobile design tokens — zladené s webom.
  * Podporuje senior režim (väčšie písmo + hit target).
  */
 

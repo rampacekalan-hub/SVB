@@ -179,8 +179,8 @@ const SK: MarketingCopy = {
   beforeAfter: {
     kicker: 'Pred a po',
     title: 'Ako to bolo doteraz vs. ako to bude',
-    subtitle: 'Konkrétne situácie, ktoré pozná každý predseda. Po prechode na DomovPlus sa každá z nich zmení.',
-    headers: { area: 'Oblasť', before: 'Dnes (Excel + papier)', after: 'S DomovPlus' },
+    subtitle: 'Konkrétne situácie, ktoré pozná každý predseda. Po prechode na Floory sa každá z nich zmení.',
+    headers: { area: 'Oblasť', before: 'Dnes (Excel + papier)', after: 'S Floory' },
     summary: [
       { num: '~40 h', label: 'úspora času predsedu / rok' },
       { num: '3 dni', label: 'zápisnica namiesto dvoch mesiacov' },
@@ -313,9 +313,9 @@ const SK: MarketingCopy = {
     cols: [
       { title: 'Produkt', links: [{ label: 'Funkcie', href: '#funkcie' }, { label: 'Ako funguje', href: '#how' }, { label: 'Cenník', href: '#cennik' }, { label: 'Registrácia', href: '/registracia' }] },
       { title: 'Pre koho', links: [{ label: 'Vlastníci (mám kód)', href: '/aktivacia' }, { label: 'Predsedovia SVB / BD', href: '/registracia' }, { label: 'Správcovské firmy', href: '/registracia' }] },
-      { title: 'Podpora', links: [{ label: 'hello@domovplus.sk', href: 'mailto:hello@domovplus.sk' }, { label: '+421 911 000 000', href: 'tel:+421911000000' }, { label: 'Prihlásenie', href: '/prihlasenie' }] },
+      { title: 'Podpora', links: [{ label: 'hello@floory.sk', href: 'mailto:hello@floory.sk' }, { label: '+421 911 000 000', href: 'tel:+421911000000' }, { label: 'Prihlásenie', href: '/prihlasenie' }] },
     ],
-    legal: '© 2026 DomovPlus',
+    legal: '© 2026 Floory',
     legalLinks: { terms: 'Obchodné podmienky', privacy: 'Ochrana údajov', dpa: 'DPA' },
     made: 'Postavené v Bratislave',
   },

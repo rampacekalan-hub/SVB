@@ -21,12 +21,12 @@ export class ActivationCodesPdfService {
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
 
-      doc.fontSize(18).text('DomovPlus — Aktivačné kódy', { align: 'left' });
+      doc.fontSize(18).text('Floory — Aktivačné kódy', { align: 'left' });
       doc.moveDown(0.2);
       doc.fontSize(12).fillColor('#555').text(buildingName);
       doc.moveDown(0.5);
       doc.fillColor('#000').fontSize(10).text(
-        'Každý vlastník si zaregistruje svoj účet na adrese https://domovplus.sk/registracia. ' +
+        'Každý vlastník si zaregistruje svoj účet na adrese https://floory.sk/registracia. ' +
           'Pri registrácii zadá nižšie uvedený kód — platí jednorazovo pre byt, ku ktorému je priradený.',
         { width: 495 },
       );

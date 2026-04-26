@@ -151,7 +151,7 @@ export class RevisionReminderService {
           to: user.email,
           subject: subjectMap[kind],
           text: bodyMap[kind] +
-            `\n\nDetail: ${process.env.WEB_URL ?? 'http://localhost:5174'}/b/${rev.buildingId}/revizie\n\n— DomovPlus`,
+            `\n\nDetail: ${process.env.WEB_URL ?? 'http://localhost:5174'}/b/${rev.buildingId}/revizie\n\n— Floory`,
         });
       } catch (e) {
         this.log.warn(`Email pre revíziu ${rev.id} zlyhal: ${(e as Error).message}`);

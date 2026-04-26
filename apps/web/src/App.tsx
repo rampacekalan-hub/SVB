@@ -253,7 +253,7 @@ function MobileMenu({ me }: { me: Me }) {
         <div className="mobile-drawer" onClick={() => setOpen(false)}>
           <div className="mobile-drawer-panel" onClick={(e) => e.stopPropagation()}>
             <div style={{ padding: '0.5rem 0.75rem 1rem' }}>
-              <strong style={{ fontSize: 18 }}>DomovPlus</strong>
+              <strong style={{ fontSize: 18 }}>Floory</strong>
             </div>
             <ul className="shell-nav" onClick={() => setOpen(false)}>
               {links.map((l) => (
@@ -274,7 +274,7 @@ function MobileMenu({ me }: { me: Me }) {
 /* ------------------------------------------------------------------- */
 
 function Login({ onLogin }: { onLogin: (me: Me) => void }) {
-  const [email, setEmail] = useState('predseda@domovplus.local');
+  const [email, setEmail] = useState('predseda@floory.local');
   const [password, setPassword] = useState('DemoHeslo12345!');
   const [totpToken, setTotpToken] = useState('');
   const [mfaNeeded, setMfaNeeded] = useState(false);
@@ -364,7 +364,7 @@ function Login({ onLogin }: { onLogin: (me: Me) => void }) {
           )}
         </form>
         <div className="demo-hint">
-          Demo účet · <code>predseda@domovplus.local</code> / <code>DemoHeslo12345!</code>
+          Demo účet · <code>predseda@floory.local</code> / <code>DemoHeslo12345!</code>
         </div>
         <div style={{ marginTop: '1rem', padding: '0.75rem', background: 'var(--brand-soft)', borderRadius: 8, textAlign: 'center' }}>
           <strong>Dostali ste aktivačný kód?</strong>

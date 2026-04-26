@@ -284,7 +284,7 @@ function AddMemberModal({
             <Field label="Meno (pre oslovenie v e-maile)" hint="Voliteľné">
               <input value={form.inviteName} onChange={(e) => setForm({ ...form, inviteName: e.target.value })} placeholder="Marek Novák" />
             </Field>
-            <Field label="Email" hint="Ak má už účet v DomovPlus, priradí sa priamo. Ak nemá, pošleme pozvánku s kódom.">
+            <Field label="Email" hint="Ak má už účet v Floory, priradí sa priamo. Ak nemá, pošleme pozvánku s kódom.">
               <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="marek@priklad.sk" />
             </Field>
           </Form>

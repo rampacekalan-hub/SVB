@@ -3,7 +3,7 @@
  *
  *   /obchodne-podmienky   — T&Cs pre SaaS
  *   /ochrana-udajov       — GDPR privacy notice
- *   /spracovanie-udajov   — DPA (Data Processing Agreement) — DomovPlus je spracovateľ
+ *   /spracovanie-udajov   — DPA (Data Processing Agreement) — Floory je spracovateľ
  *
  * Obsah je realisticky napísaný pre SK/CZ SVB/BD kontext.
  * IČO / právny subjekt dopĺňaš po založení s.r.o.
@@ -22,7 +22,7 @@ function LegalLayout({ title, updated, children }: { title: string; updated: str
         <div className="legal-content">{children}</div>
         <footer className="legal-footer">
           <p>
-            Máte otázku k tomuto dokumentu? Napíšte na <a href="mailto:legal@domovplus.sk">legal@domovplus.sk</a>.
+            Máte otázku k tomuto dokumentu? Napíšte na <a href="mailto:legal@floory.sk">legal@floory.sk</a>.
           </p>
           <Link to="/" className="mk-btn mk-btn-secondary">← Späť na hlavnú stránku</Link>
         </footer>
@@ -37,18 +37,18 @@ export function TermsPage() {
       <h2>1. Úvodné ustanovenia</h2>
       <p>
         Tieto obchodné podmienky (ďalej len <strong>„Podmienky"</strong>) upravujú vzťah medzi prevádzkovateľom
-        služby DomovPlus (ďalej len <strong>„Poskytovateľ"</strong>) a registrovaným užívateľom (ďalej len
+        služby Floory (ďalej len <strong>„Poskytovateľ"</strong>) a registrovaným užívateľom (ďalej len
         <strong> „Zákazník"</strong>), ktorým je spravidla spoločenstvo vlastníkov bytov (SVB), bytové
         družstvo (BD) alebo správcovská spoločnosť v Slovenskej republike alebo Českej republike.
       </p>
       <p>
-        Služba DomovPlus je softvér ako služba (SaaS) pre digitálnu správu bytového domu — hlasovania
+        Služba Floory je softvér ako služba (SaaS) pre digitálnu správu bytového domu — hlasovania
         vlastníkov, evidencia faktúr, poruchové tikety, schôdze, archív dokumentov.
       </p>
 
       <h2>2. Uzavretie zmluvy</h2>
       <p>
-        Zmluva vzniká akceptovaním týchto Podmienok počas registrácie budovy v systéme DomovPlus. Zákazník
+        Zmluva vzniká akceptovaním týchto Podmienok počas registrácie budovy v systéme Floory. Zákazník
         potvrdzuje, že má oprávnenie konať za právnický subjekt, ktorý registruje (napríklad mandát predsedu
         SVB).
       </p>
@@ -74,7 +74,7 @@ export function TermsPage() {
       <p>
         Poskytovateľ sa zaväzuje udržiavať dostupnosť služby na úrovni <strong>99 % mesačne</strong>
         (okrem plánovanej údržby, ktorá sa oznamuje 48 hodín vopred). Aktuálny stav služieb:
-        {' '}<Link to="/status">status.domovplus.sk</Link>.
+        {' '}<Link to="/status">status.floory.sk</Link>.
       </p>
 
       <h2>6. Ochrana dát a zálohovanie</h2>
@@ -109,9 +109,9 @@ export function TermsPage() {
 
       <hr />
       <p className="legal-meta">
-        <strong>Poskytovateľ:</strong> DomovPlus s.r.o. (v registrácii), Bratislava, Slovensko.<br />
+        <strong>Poskytovateľ:</strong> Floory s.r.o. (v registrácii), Bratislava, Slovensko.<br />
         Presné registračné údaje (IČO, DIČ, adresa) budú doplnené po zápise do Obchodného registra.
-        Pre predzmluvnú komunikáciu používajte <a href="mailto:hello@domovplus.sk">hello@domovplus.sk</a>.
+        Pre predzmluvnú komunikáciu používajte <a href="mailto:hello@floory.sk">hello@floory.sk</a>.
       </p>
     </LegalLayout>
   );
@@ -121,15 +121,15 @@ export function PrivacyPage() {
   return (
     <LegalLayout title="Ochrana osobných údajov" updated="24. apríla 2026">
       <p className="legal-lede">
-        Tento dokument vysvetľuje, aké osobné údaje o vás DomovPlus spracúva, prečo a ako ich chránime.
+        Tento dokument vysvetľuje, aké osobné údaje o vás Floory spracúva, prečo a ako ich chránime.
         Spracovanie prebieha v súlade s Nariadením GDPR (EÚ) 2016/679 a zákonom č. 18/2018 Z. z.
         o ochrane osobných údajov.
       </p>
 
       <h2>1. Kto sme</h2>
       <p>
-        Prevádzkovateľom služby DomovPlus je DomovPlus s.r.o. (v registrácii). Kontakt pre otázky ochrany
-        údajov: <a href="mailto:privacy@domovplus.sk">privacy@domovplus.sk</a>.
+        Prevádzkovateľom služby Floory je Floory s.r.o. (v registrácii). Kontakt pre otázky ochrany
+        údajov: <a href="mailto:privacy@floory.sk">privacy@floory.sk</a>.
       </p>
 
       <h2>2. Aké údaje spracúvame</h2>
@@ -155,7 +155,7 @@ export function PrivacyPage() {
 
       <h2>3. Prečo ich spracúvame (právny základ)</h2>
       <ul>
-        <li><strong>Plnenie zmluvy</strong> (čl. 6 ods. 1 písm. b GDPR) — poskytovanie služieb DomovPlus</li>
+        <li><strong>Plnenie zmluvy</strong> (čl. 6 ods. 1 písm. b GDPR) — poskytovanie služieb Floory</li>
         <li><strong>Zákonná povinnosť</strong> (čl. 6 ods. 1 písm. c) — archivácia účtovných dokladov 10 rokov</li>
         <li><strong>Oprávnený záujem</strong> (čl. 6 ods. 1 písm. f) — bezpečnostné logy, detekcia zneužitia</li>
         <li><strong>Súhlas</strong> (čl. 6 ods. 1 písm. a) — marketing, newsletter (vždy s možnosťou odhlásenia)</li>
@@ -199,13 +199,13 @@ export function PrivacyPage() {
         <li>Podať sťažnosť Úradu na ochranu osobných údajov SR (<a href="https://dataprotection.gov.sk" target="_blank" rel="noreferrer">dataprotection.gov.sk</a>)</li>
       </ul>
       <p>
-        Žiadosti zasielajte na <a href="mailto:privacy@domovplus.sk">privacy@domovplus.sk</a>. Odpovedáme
+        Žiadosti zasielajte na <a href="mailto:privacy@floory.sk">privacy@floory.sk</a>. Odpovedáme
         do 30 dní.
       </p>
 
       <h2>8. Cookies a sledovanie</h2>
       <p>
-        DomovPlus používa iba <strong>technicky nevyhnutné cookies</strong> pre prihlásenie a bezpečnosť
+        Floory používa iba <strong>technicky nevyhnutné cookies</strong> pre prihlásenie a bezpečnosť
         (JWT token, CSRF). Neposkytujeme dáta tretím stranám na reklamu, nepoužívame Google Analytics
         ani Meta Pixel. Webová analytika prebieha cez Plausible, ktorý neukladá cookies ani IP adresy.
       </p>
@@ -229,14 +229,14 @@ export function DpaPage() {
       <p className="legal-lede">
         Tento dokument je <strong>Zmluvou o spracovaní osobných údajov</strong> podľa čl. 28 GDPR.
         Uzatvára sa medzi <strong>Prevádzkovateľom</strong> (SVB / BD / správcovská firma používajúca
-        DomovPlus) a <strong>Sprostredkovateľom</strong> (DomovPlus s.r.o.). Je súčasťou obchodných
+        Floory) a <strong>Sprostredkovateľom</strong> (Floory s.r.o.). Je súčasťou obchodných
         podmienok a stáva sa záväzným momentom registrácie budovy v systéme.
       </p>
 
       <h2>Predmet spracovania</h2>
       <p>
         Sprostredkovateľ spracúva osobné údaje v mene Prevádzkovateľa výhradne za účelom
-        poskytovania služby DomovPlus — softvérovej platformy pre správu bytového domu.
+        poskytovania služby Floory — softvérovej platformy pre správu bytového domu.
       </p>
 
       <h2>Kategórie dotknutých osôb</h2>

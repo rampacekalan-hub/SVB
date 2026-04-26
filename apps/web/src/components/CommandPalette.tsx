@@ -315,7 +315,7 @@ export function CommandPalette({ me, buildingId }: { me: Me; buildingId?: string
           <span><kbd className="cmdk-kbd-sm">↵</kbd> potvrdiť</span>
           <span><kbd className="cmdk-kbd-sm">esc</kbd> zavrieť</span>
           <span className="spacer" />
-          <span>DomovPlus</span>
+          <span>Floory</span>
         </div>
       </div>
     </div>

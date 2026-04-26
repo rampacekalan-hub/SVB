@@ -43,7 +43,7 @@ export class PushController {
   @Post('test')
   async test(@Req() req: { user: { id: string } }) {
     return this.push.sendToUser(req.user.id, {
-      title: 'DomovPlus test',
+      title: 'Floory test',
       body: 'Push notifikácie fungujú 🎉',
       url: '/',
     });
