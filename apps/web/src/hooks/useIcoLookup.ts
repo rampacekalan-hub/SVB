@@ -25,12 +25,21 @@ export interface RegistryResult {
 
 export type LookupState = 'idle' | 'searching' | 'found' | 'notFound' | 'error';
 
-export function useIcoLookup(ico: string, country: 'SK' | 'CZ' = 'SK') {
+/**
+ * Hook s `enabled` flag — keď false, neskúma. Použije sa keď údaje sú už uložené:
+ * parent prepne enabled=true až keď user zmení hodnotu políčka.
+ */
+export function useIcoLookup(ico: string, country: 'SK' | 'CZ' = 'SK', enabled = true) {
   const [state, setState] = useState<LookupState>('idle');
   const [result, setResult] = useState<RegistryResult | null>(null);
   const timeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
+    if (!enabled) {
+      setState('idle');
+      setResult(null);
+      return;
+    }
     const cleaned = ico.replace(/\s+/g, '');
     if (!/^\d{8}$/.test(cleaned)) {
       setState('idle');
@@ -58,7 +67,7 @@ export function useIcoLookup(ico: string, country: 'SK' | 'CZ' = 'SK') {
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [ico, country]);
+  }, [ico, country, enabled]);
 
   return { state, result };
 }

@@ -240,17 +240,8 @@ export function NewIncomingInvoicePage({ buildingId }: { buildingId: string }) {
   async function ocrUpload(file: File) {
     setBusy(true); setErr(null);
     try {
-      const fd = new FormData();
-      fd.append('file', file);
-      fd.append('buildingId', buildingId);
-      const token = localStorage.getItem('domovplus.accessToken');
-      const res = await fetch('/api/incoming-invoices/ocr-preview', {
-        method: 'POST',
-        body: fd,
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
+      // apiUpload má auto-refresh na 401 + extra fields
+      const data = await apiUpload<any>('/incoming-invoices/ocr-preview', file, 'file', { buildingId });
       setOcrPreview({ ...data, file });
       setPendingAttachment(file);
 

@@ -69,12 +69,46 @@ function friendlyStatus(status: number, statusText: string): string {
   }
 }
 
+/**
+ * Refresh access token cez /auth/refresh.
+ * Ak zlyhá, vyčistíme tokeny (user musí znova login).
+ */
+let refreshInFlight: Promise<string | null> | null = null;
+async function tryRefresh(): Promise<string | null> {
+  if (refreshInFlight) return refreshInFlight;
+  const refresh = localStorage.getItem(REFRESH_KEY);
+  if (!refresh) return null;
+  refreshInFlight = (async () => {
+    try {
+      const res = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: refresh }),
+      });
+      if (!res.ok) {
+        clearTokens();
+        return null;
+      }
+      const data = await res.json();
+      if (data.accessToken && data.refreshToken) {
+        setTokens(data.accessToken, data.refreshToken);
+        return data.accessToken;
+      }
+      return null;
+    } catch {
+      return null;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+  return refreshInFlight;
+}
+
 export async function api<T = unknown>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const token = getAccessToken();
-  const res = await fetch(`/api${path}`, {
+  const doFetch = async (token: string | null) => fetch(`/api${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -82,6 +116,23 @@ export async function api<T = unknown>(
       ...(options.headers ?? {}),
     },
   });
+
+  let token = getAccessToken();
+  let res = await doFetch(token);
+
+  // Auto-refresh na 401 — jeden retry
+  if (res.status === 401 && token) {
+    const newToken = await tryRefresh();
+    if (newToken) {
+      res = await doFetch(newToken);
+    } else {
+      // refresh neuspel → user musí znova login
+      clearTokens();
+      // Trigger re-render parent (RootRedirect detekuje chýbajúci token)
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('storage'));
+    }
+  }
+
   if (!res.ok) {
     const body = await res.text();
     throw extractError(res.status, res.statusText, body);
@@ -94,17 +145,31 @@ export async function apiUpload<T = unknown>(
   path: string,
   file: File,
   fieldName = 'file',
+  extraFields?: Record<string, string>,
 ): Promise<T> {
-  const token = getAccessToken();
-  const form = new FormData();
-  form.append(fieldName, file);
-  const res = await fetch(`/api${path}`, {
+  const buildForm = () => {
+    const form = new FormData();
+    form.append(fieldName, file);
+    if (extraFields) {
+      for (const [k, v] of Object.entries(extraFields)) form.append(k, v);
+    }
+    return form;
+  };
+
+  const doFetch = async (token: string | null) => fetch(`/api${path}`, {
     method: 'POST',
-    body: form,
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
+    body: buildForm(),
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
   });
+
+  let token = getAccessToken();
+  let res = await doFetch(token);
+
+  if (res.status === 401 && token) {
+    const newToken = await tryRefresh();
+    if (newToken) res = await doFetch(newToken);
+  }
+
   if (!res.ok) {
     const body = await res.text();
     throw extractError(res.status, res.statusText, body);
