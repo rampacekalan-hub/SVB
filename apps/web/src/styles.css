@@ -4333,6 +4333,37 @@ html[data-theme='dark'] .mk-noise::before,
 .ocr-running strong { color: var(--brand); display: block; }
 
 /* OCR summary */
+/* OCR Confidence Warnings */
+.ii-ocr-warning {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+.ii-ocr-warning-low {
+  background: color-mix(in srgb, var(--danger) 12%, white);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+}
+.ii-ocr-warning-low strong { color: var(--danger); }
+.ii-ocr-warning-medium {
+  background: color-mix(in srgb, var(--warning) 12%, white);
+  border: 1px solid var(--warning);
+  color: var(--warning);
+}
+.ii-ocr-warning-medium strong { color: var(--warning); }
+.ii-ocr-warning-icon {
+  flex-shrink: 0;
+  font-size: 1.125rem;
+}
+.ii-ocr-warning p {
+  margin: 0.25rem 0 0;
+}
+
 .ii-ocr-summary {
   padding: 1rem 1.25rem;
   background: var(--brand-soft);

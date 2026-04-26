@@ -409,6 +409,26 @@ export function NewIncomingInvoicePage({ buildingId }: { buildingId: string }) {
           )}
           {ocrPreview && (
             <>
+              {/* OCR Confidence Warning — keď je nízka, upozorni usera */}
+              {ocrPreview.extraction.confidence < 0.5 && (
+                <div className="ii-ocr-warning ii-ocr-warning-low">
+                  <span className="ii-ocr-warning-icon">⚠️</span>
+                  <div>
+                    <strong>Nízka kvalita rozpoznávania ({(ocrPreview.extraction.confidence * 100).toFixed(0)}%)</strong>
+                    <p>Fotka je nejasná alebo faktúra je v zlom formáte. <strong>Prosím skontroluj nižšie údaje a oprav ich ručne.</strong></p>
+                  </div>
+                </div>
+              )}
+              {ocrPreview.extraction.confidence >= 0.5 && ocrPreview.extraction.confidence < 0.75 && (
+                <div className="ii-ocr-warning ii-ocr-warning-medium">
+                  <span className="ii-ocr-warning-icon">ℹ️</span>
+                  <div>
+                    <strong>Stredná kvalita rozpoznávania ({(ocrPreview.extraction.confidence * 100).toFixed(0)}%)</strong>
+                    <p>Prosím skontroluj kritické polia (suma, IBAN, VS).</p>
+                  </div>
+                </div>
+              )}
+
               <div className="ii-ocr-summary">
                 <div className="ii-ocr-head">
                   <strong>Rozpoznané údaje z faktúry</strong>
